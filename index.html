@@ -583,7 +583,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 // Instant hide to prevent flicker - runs before page render
 (function(){
   const params = new URLSearchParams(window.location.search);
-  if(params.get('user')){
+  if(params.get('user') && params.get('session')){
     document.write('<style>#setup{display:none!important}</style>');
   }
 })();
@@ -732,11 +732,6 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <div class="stat-chip"><div class="val" id="s-peak">—</div><div class="lbl">Peak viewers</div></div>
   </div>
   
-  <!-- Cache Info (hidden by default) -->
-  <div id="cache-info" style="display:none;text-align:center;margin:12px 0;font-size:12px;color:var(--muted);opacity:0.7;">
-    📦 <span id="cache-msg"></span>
-  </div>
-
   <!-- Podium + Activity Graph Section -->
   <div id="podium-section">
     <!-- Top 3 Podium -->
@@ -849,7 +844,7 @@ const messages = {};   // username → [{text, time}]
 const userMeta = {};   // username → {isMod, avatar}
 const emotesMap = {};  // emote name → emote data (7TV)
 const MAX_MSGS_PER_USER = 200;
-let totalMsgs=0,isLive=false,chatroomId=null,channelUser='';
+let totalMsgs=0,isLive=false,chatroomId=null,channelUser='',sessionId='';
 let pusher,chan,mpmBuf=[],renderTid=null;
 let peakViewers=0;
 const TOP=50;
@@ -1208,11 +1203,37 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
 });
 
 // ══════════════════════════════════════════════════
-// PERSISTENCE & SESSION MANAGEMENT
+// PERSISTENCE - HYBRID SYSTEM
+// - localStorage: backup local rapid
+// - Redis (Upstash): partajare între browsere/dispozitive
+// - Auto-sync la fiecare 10 secunde
+// - Datele persistă chiar și când închizi browserul
 // ══════════════════════════════════════════════════
 
+function generateSessionId() {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+}
+
+function getOrCreateSessionId() {
+  // Verifică dacă avem deja un sessionId pentru acest channel în localStorage
+  const sessionKey = `topChatters_${channelUser}_currentSession`;
+  let existingSessionId = localStorage.getItem(sessionKey);
+  
+  if (!existingSessionId) {
+    // Generează un nou sessionId și salvează-l
+    existingSessionId = generateSessionId();
+    localStorage.setItem(sessionKey, existingSessionId);
+    console.log('🆕 Sesiune nouă creată:', existingSessionId);
+  } else {
+    console.log('♻️ Sesiune existentă încărcată:', existingSessionId);
+  }
+  
+  return existingSessionId;
+}
+
 function getStorageKey(key) {
-  // Cache partajat între toți utilizatorii - folosim doar channelUser
+  // Folosim doar channelUser (fără sessionId) pentru partajare între browsere
   return `topChatters_${channelUser}_${key}`;
 }
 
@@ -1227,25 +1248,40 @@ async function saveState() {
       peakViewers: peakViewers,
       emoteUsage: emoteUsage,
       emotesMap: emotesMap,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      lastSessionId: sessionId // Track care sesiune a salvat ultima dată
     };
     
-    // Salvează în localStorage local (backup)
+    // 1. Salvează IMEDIAT în localStorage (instant, nu așteaptă API)
     localStorage.setItem(getStorageKey('state'), JSON.stringify(state));
     
-    // Salvează în cache-ul global partajat (20 ore)
-    try {
-      await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state)
-      });
-    } catch(e) {
-      // Dacă API-ul nu e disponibil, continuă cu localStorage
-      console.warn('Cache API unavailable, using localStorage only');
-    }
+    // 2. Sync în Redis pentru partajare între browsere (async, nu blochează)
+    syncToCloud(state).catch(err => {
+      console.warn('Cloud sync failed, using localStorage only:', err.message);
+    });
+    
   } catch(e) {
-    // console.warn('Failed to save state:', e);
+    console.warn('Failed to save state:', e);
+  }
+}
+
+// Sync la cloud (Redis) pentru partajare între browsere
+async function syncToCloud(state) {
+  try {
+    const response = await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    // console.log('☁️ Synced to cloud');
+  } catch(e) {
+    // Fail silently - localStorage funcționează oricum
+    throw e;
   }
 }
 
@@ -1253,51 +1289,49 @@ async function loadState() {
   if (!channelUser) return false;
   try {
     let state = null;
+    let source = '';
     
-    // Încearcă să încarce din cache-ul global partajat mai întâi
+    // 1. Încearcă să încarce din Redis (partajat între browsere)
     try {
       const response = await fetch(`/api/cache?action=get&key=${encodeURIComponent(getStorageKey('state'))}`);
       const cacheData = await response.json();
       
       if (cacheData.cached && cacheData.data) {
         state = cacheData.data;
+        source = 'cloud';
         
-        // Afișează când expiră datele (în ore)
-        const hoursRemaining = Math.floor(cacheData.expiresIn / 3600);
-        const minutesRemaining = Math.floor((cacheData.expiresIn % 3600) / 60);
-        console.log(`📦 Date încărcate din cache partajat (expiră în ${hoursRemaining}h ${minutesRemaining}m)`);
+        // Salvează în localStorage pentru următoarea încărcare (dacă Redis cade)
+        localStorage.setItem(getStorageKey('state'), JSON.stringify(state));
         
-        // Afișează mesaj în UI
-        const cacheInfo = document.getElementById('cache-info');
-        const cacheMsg = document.getElementById('cache-msg');
-        if (cacheInfo && cacheMsg) {
-          cacheMsg.textContent = `Date partajate - actualizate acum ${getTimeAgo(state.timestamp)} • expiră în ${hoursRemaining}h ${minutesRemaining}m`;
-          cacheInfo.style.display = 'block';
-          
-          // Ascunde mesajul după 8 secunde
-          setTimeout(() => {
-            cacheInfo.style.display = 'none';
-          }, 8000);
-        }
+        const timeAgo = getTimeAgo(state.timestamp);
+        console.log(`☁️ Date încărcate din cloud (ultima actualizare: ${timeAgo} în urmă)`);
       }
     } catch(e) {
-      console.log('Cache API unavailable, trying localStorage...');
+      console.log('☁️ Cloud unavailable, trying localStorage...');
     }
     
-    // Fallback: încearcă localStorage dacă nu există în cache global
+    // 2. Fallback: localStorage dacă Redis nu e disponibil
     if (!state) {
       const localState = localStorage.getItem(getStorageKey('state'));
       if (localState) {
         state = JSON.parse(localState);
-        console.log('📦 Date încărcate din localStorage (backup)');
+        source = 'localStorage';
+        
+        const timeAgo = getTimeAgo(state.timestamp);
+        console.log(`💾 Date încărcate din localStorage (ultima actualizare: ${timeAgo} în urmă)`);
       }
     }
     
-    if (!state) return false;
+    if (!state) {
+      console.log('📦 Nu există date salvate pentru acest canal');
+      return false;
+    }
     
-    // Verifică dacă datele au mai puțin de 20 ore (72000000 ms)
-    if (state.timestamp && (Date.now() - state.timestamp) > 20 * 60 * 60 * 1000) {
-      clearState();
+    // Verifică dacă datele au mai puțin de 30 zile (expirare maximă)
+    const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 zile
+    if (state.timestamp && (Date.now() - state.timestamp) > MAX_AGE) {
+      console.log('⏰ Date expirate (>30 zile), se resetează');
+      await clearState();
       return false;
     }
     
@@ -1329,6 +1363,7 @@ async function loadState() {
       
       renderBoard();
       updateTopEmotes();
+      
       return true;
     }
   } catch(e) {
@@ -1343,17 +1378,20 @@ async function clearState() {
     // Șterge din localStorage
     localStorage.removeItem(getStorageKey('state'));
     
-    // Șterge din cache-ul global (nu există DELETE endpoint, dar putem seta timestamp expirat)
-    // Pentru simplitate, lăsăm cache-ul să expire natural
-    
-    console.log('✓ Stare resetată');
+    // Șterge din Redis (cloud)
+    try {
+      await fetch(`/api/cache?action=clear&key=${encodeURIComponent(getStorageKey('state'))}`);
+      console.log('✓ Stare resetată (localStorage + cloud)');
+    } catch(e) {
+      console.log('✓ Stare resetată (localStorage only)');
+    }
   } catch(e) {
-    // console.warn('Failed to clear state:', e);
+    console.warn('Failed to clear state:', e);
   }
 }
 
 function updateURL() {
-  const newUrl = `${window.location.pathname}?user=${channelUser}`;
+  const newUrl = `${window.location.pathname}?user=${channelUser}&session=${sessionId}`;
   window.history.replaceState({}, '', newUrl);
 }
 
@@ -1366,12 +1404,14 @@ window.addEventListener('beforeunload', saveState);
 // Check URL parameters on load
 const urlParams = new URLSearchParams(window.location.search);
 const urlUser = urlParams.get('user');
+const urlSession = urlParams.get('session');
 
-// Hide setup immediately if we have user param (prevent flicker)
-if (urlUser) {
+// Hide setup immediately if we have user+session params (prevent flicker)
+if (urlUser && urlSession) {
   const setupEl = document.getElementById('setup');
   setupEl.style.display = 'none';
   document.getElementById('inp-user').value = urlUser;
+  sessionId = urlSession; // Restaurează sessionId din URL
   
   // Auto-start after DOM is fully loaded
   window.addEventListener('DOMContentLoaded', () => {
@@ -1399,6 +1439,9 @@ if (inpUser && btnGo) {
   }
   
   channelUser=user;
+  
+  // Generează sau încarcă sessionId persistent pentru acest utilizator
+  sessionId = getOrCreateSessionId();
   
   errEl.textContent='';
   btnGo.disabled=true;
@@ -1440,10 +1483,10 @@ if (inpUser && btnGo) {
     // Update URL with channel
     updateURL();
     
-    // Try to load saved state (async)
+    // Try to load saved state (checks cloud first, then localStorage)
     const loaded = await loadState();
     if (loaded) {
-      console.log('✓ Stare încărcată din cache partajat');
+      console.log('✓ Stare încărcată cu succes');
     }
 
     // Load emotes (7TV + Kick global + Kick channel-specific)
@@ -1565,6 +1608,15 @@ function startPusher() {
               if (style.paintIsImage) userMeta[capturedUsername].paintIsImage  = style.paintIsImage;
               if (style.paintImageUrl)userMeta[capturedUsername].paintImageUrl = style.paintImageUrl;
               if (style.badge)        userMeta[capturedUsername].badge7TV      = style.badge;
+              
+              // Debug: Log successful 7TV cosmetics application
+              if (style.paint || style.paintIsImage || style.badge) {
+                console.log(`🎨 7TV Cosmetics loaded for ${capturedUsername}:`, {
+                  paint: style.paint || 'none',
+                  paintIsImage: style.paintIsImage,
+                  badge: style.badge ? 'yes' : 'no'
+                });
+              }
               
               renderBoard();
             } else {
