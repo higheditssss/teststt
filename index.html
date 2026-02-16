@@ -236,9 +236,13 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .divider{grid-column:1/-1;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(200,220,200,.15);padding:12px 0 8px;font-weight:600}
 
 /* ── Reset ── */
-#reset-wrap{display:none;justify-content:center;margin-top:32px}
-#btn-reset{background:transparent;border:1px solid rgba(255,77,77,.25);color:rgba(255,77,77,.55);border-radius:8px;padding:9px 22px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
-#btn-reset:hover{border-color:var(--red);color:var(--red);background:rgba(255,77,77,.07)}
+#reset-wrap{display:none;justify-content:center;gap:16px;margin-top:32px;flex-wrap:wrap}
+#btn-reset,#btn-stop{background:transparent;border:1px solid rgba(255,77,77,.25);color:rgba(255,77,77,.55);border-radius:8px;padding:9px 22px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
+#btn-reset:hover,#btn-stop:hover{border-color:var(--red);color:var(--red);background:rgba(255,77,77,.07)}
+#btn-stop{border-color:rgba(255,165,0,.25);color:rgba(255,165,0,.65)}
+#btn-stop:hover{border-color:rgba(255,165,0,.8);color:rgba(255,165,0,1);background:rgba(255,165,0,.07)}
+#btn-stop.stopped{border-color:var(--g);color:var(--g);background:rgba(83,252,24,.07)}
+#btn-stop.stopped:hover{border-color:var(--g);background:rgba(83,252,24,.12)}
 
 /* ── Password Reset Modal ── */
 #password-modal{
@@ -732,6 +736,13 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <div class="stat-chip"><div class="val" id="s-peak">—</div><div class="lbl">Peak viewers</div></div>
   </div>
   
+  <!-- Custom Top Input -->
+  <div id="top-selector-wrap" style="display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0 16px;flex-wrap:wrap">
+    <span style="font-size:13px;color:var(--muted);font-weight:600;letter-spacing:0.05em">AFIȘEAZĂ TOP:</span>
+    <input type="number" id="top-input" value="50" min="1" max="500" placeholder="50" style="background:rgba(83,252,24,.04);border:1px solid rgba(83,252,24,.2);border-radius:8px;padding:8px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;width:80px;text-align:center;outline:none;transition:all .2s">
+    <button id="apply-top-btn" style="background:linear-gradient(135deg, var(--g) 0%, #3fc010 100%);color:#000;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:0.05em">APLICĂ</button>
+  </div>
+  
   <!-- Podium + Activity Graph Section -->
   <div id="podium-section">
     <!-- Top 3 Podium -->
@@ -804,6 +815,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
   </div>
 
   <div id="reset-wrap">
+    <button id="btn-stop">⏸ Oprește tracking</button>
     <button id="btn-reset">🔄 Resetează statistici</button>
   </div>
 </div>
@@ -847,7 +859,7 @@ const MAX_MSGS_PER_USER = 200;
 let totalMsgs=0,isLive=false,chatroomId=null,channelUser='',sessionId='';
 let pusher,chan,mpmBuf=[],renderTid=null;
 let peakViewers=0;
-const TOP=50;
+let TOP=50; // Număr customizabil de chatteri afișați
 
 // Activity panels
 let emoteUsage = {}; // emote name → count
@@ -1558,8 +1570,8 @@ function startPusher() {
   const chV1=pusher.subscribe('chatrooms.'+chatroomId);
 
   function processMsg(data) {
-    // Don't process messages when offline
-    if (!isLive) return;
+    // Don't process messages when offline OR tracking is stopped
+    if (!isLive || trackingStopped) return;
     
     if (typeof data==='string') { try{ data=JSON.parse(data); }catch(e){ return; } }
     const sender=data?.sender||data?.user||data?.chatter||{};
@@ -2177,6 +2189,7 @@ document.getElementById('btn-reset').addEventListener('click', ()=>{
   passwordModal.classList.add('open');
   passwordInput.value = '';
   passwordError.textContent = '';
+  passwordInput.dataset.action = 'reset'; // Mark as reset action
   setTimeout(() => passwordInput.focus(), 100);
 });
 
@@ -2194,68 +2207,6 @@ function closePasswordModal() {
 passwordInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') passwordConfirm.click();
   if (e.key === 'Escape') closePasswordModal();
-});
-
-passwordConfirm.addEventListener('click', async () => {
-  const enteredPassword = passwordInput.value.trim();
-  
-  if (!enteredPassword) {
-    passwordError.textContent = '⚠ Introdu o parolă';
-    return;
-  }
-  
-  // Hash the entered password and compare
-  const enteredHash = await hashPassword(enteredPassword);
-  
-  if (enteredHash !== RESET_PASS_HASH) {
-    passwordError.textContent = '❌ Parolă incorectă! Verifică pe Instagram.';
-    passwordInput.value = '';
-    passwordInput.focus();
-    return;
-  }
-  
-  // Password correct - reset stats
-  if (!confirm('Ești sigur că vrei să resetezi toate statisticile?')) {
-    closePasswordModal();
-    return;
-  }
-  
-  for(const k in counts) delete counts[k];
-  for(const k in userMeta) delete userMeta[k];
-  for(const k in messages) delete messages[k];
-  for(const k in emoteUsage) delete emoteUsage[k];
-  for(const k in emotesMap) delete emotesMap[k];
-  totalMsgs=0; mpmBuf=[]; peakViewers=0;
-  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
-  document.getElementById('s-peak').textContent='—';
-  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
-  
-  // Clear top emotes section
-  const topEmotesContainer = document.getElementById('top-emotes');
-  if (topEmotesContainer) {
-    topEmotesContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px;">Niciun emote folosit încă</div>';
-  }
-  
-  // Clear saved state
-  clearState();
-  
-  closePasswordModal();
-  
-  // Success feedback
-  const successMsg = document.createElement('div');
-  successMsg.style.cssText = `
-    position:fixed;top:20px;left:50%;transform:translateX(-50%);
-    background:var(--g);color:#000;padding:12px 24px;
-    border-radius:8px;font-weight:600;z-index:400;
-    box-shadow:0 4px 20px rgba(83,252,24,.4);
-    animation:slideDown .3s ease;
-  `;
-  successMsg.textContent = '✓ Statistici resetate cu succes!';
-  document.body.appendChild(successMsg);
-  setTimeout(() => {
-    successMsg.style.animation = 'slideUp .3s ease';
-    setTimeout(() => successMsg.remove(), 300);
-  }, 2000);
 });
 
 // ══════════════════════════════════════════════════
@@ -2471,9 +2422,13 @@ function pickWeightedWinner() {
 }
 
 function showWinner(username) {
+  // Calculează poziția câștigătorului în top
+  const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+  const position = sorted.findIndex(([user]) => user === username) + 1;
+  
   winnerName.textContent = username;
   const msgs = counts[username] || 0;
-  winnerMsgs.textContent = msgs.toLocaleString() + ' mesaje în sesiune';
+  winnerMsgs.textContent = `#${position} · ${msgs.toLocaleString()} mesaje în sesiune`;
   winnerName.style.color = hashColor(username);
   winnerName.style.textShadow = `0 0 40px ${hashColor(username)}88, 0 0 80px ${hashColor(username)}33`;
   winSection.style.display = 'block';
@@ -2506,6 +2461,145 @@ function launchConfetti() {
      .finished.then(()=>el.remove());
   }
 }
+
+// ══════════════════════════════════════════════════
+// CUSTOM TOP INPUT
+// ══════════════════════════════════════════════════
+const topInput = document.getElementById('top-input');
+const applyTopBtn = document.getElementById('apply-top-btn');
+
+applyTopBtn.addEventListener('click', () => {
+  const value = parseInt(topInput.value);
+  if (value && value > 0 && value <= 500) {
+    TOP = value;
+    renderBoard();
+  } else {
+    topInput.value = TOP; // Reset la valoarea curentă
+  }
+});
+
+topInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    applyTopBtn.click();
+  }
+});
+
+// ══════════════════════════════════════════════════
+// STOP TRACKING BUTTON
+// ══════════════════════════════════════════════════
+let trackingStopped = false;
+const btnStop = document.getElementById('btn-stop');
+
+btnStop.addEventListener('click', () => {
+  if (trackingStopped) {
+    // Resume tracking
+    trackingStopped = false;
+    btnStop.textContent = '⏸ Oprește tracking';
+    btnStop.classList.remove('stopped');
+    return;
+  }
+  
+  // Stop tracking - ask for password
+  passwordModal.classList.add('open');
+  passwordInput.value = '';
+  passwordError.textContent = '';
+  passwordInput.dataset.action = 'stop'; // Mark this as a stop action
+  setTimeout(() => passwordInput.focus(), 100);
+});
+
+// Modify password confirm to handle both reset and stop
+const originalPasswordConfirm = passwordConfirm.onclick;
+passwordConfirm.onclick = null; // Remove old listener
+
+passwordConfirm.addEventListener('click', async () => {
+  const enteredPassword = passwordInput.value.trim();
+  const action = passwordInput.dataset.action || 'reset';
+  
+  if (!enteredPassword) {
+    passwordError.textContent = '⚠ Introdu o parolă';
+    return;
+  }
+  
+  // Hash the entered password and compare
+  const enteredHash = await hashPassword(enteredPassword);
+  
+  if (enteredHash !== RESET_PASS_HASH) {
+    passwordError.textContent = '❌ Parolă incorectă! Verifică pe Instagram.';
+    passwordInput.value = '';
+    passwordInput.focus();
+    return;
+  }
+  
+  // Password correct
+  if (action === 'stop') {
+    // Stop tracking
+    trackingStopped = true;
+    btnStop.textContent = '▶ Reia tracking';
+    btnStop.classList.add('stopped');
+    closePasswordModal();
+    
+    // Success feedback
+    const successMsg = document.createElement('div');
+    successMsg.style.cssText = `
+      position:fixed;top:20px;left:50%;transform:translateX(-50%);
+      background:rgba(255,165,0,1);color:#000;padding:12px 24px;
+      border-radius:8px;font-weight:600;z-index:400;
+      box-shadow:0 4px 20px rgba(255,165,0,.4);
+      animation:slideDown .3s ease;
+    `;
+    successMsg.textContent = '⏸ Tracking oprit!';
+    document.body.appendChild(successMsg);
+    setTimeout(() => {
+      successMsg.style.animation = 'slideUp .3s ease';
+      setTimeout(() => successMsg.remove(), 300);
+    }, 2000);
+    return;
+  }
+  
+  // Reset action (original logic)
+  if (!confirm('Ești sigur că vrei să resetezi toate statisticile?')) {
+    closePasswordModal();
+    return;
+  }
+  
+  for(const k in counts) delete counts[k];
+  for(const k in userMeta) delete userMeta[k];
+  for(const k in messages) delete messages[k];
+  for(const k in emoteUsage) delete emoteUsage[k];
+  for(const k in emotesMap) delete emotesMap[k];
+  totalMsgs=0; mpmBuf=[]; peakViewers=0;
+  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('s-peak').textContent='—';
+  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
+  
+  // Clear top emotes section
+  const topEmotesContainer = document.getElementById('top-emotes');
+  if (topEmotesContainer) {
+    topEmotesContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px;">Niciun emote folosit încă</div>';
+  }
+  
+  // Clear saved state
+  clearState();
+  
+  closePasswordModal();
+  
+  // Success feedback
+  const successMsg = document.createElement('div');
+  successMsg.style.cssText = `
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);
+    background:var(--g);color:#000;padding:12px 24px;
+    border-radius:8px;font-weight:600;z-index:400;
+    box-shadow:0 4px 20px rgba(83,252,24,.4);
+    animation:slideDown .3s ease;
+  `;
+  successMsg.textContent = '✓ Statistici resetate cu succes!';
+  document.body.appendChild(successMsg);
+  setTimeout(() => {
+    successMsg.style.animation = 'slideUp .3s ease';
+    setTimeout(() => successMsg.remove(), 300);
+  }, 2000);
+});
+
 </script>
 
 </body>
