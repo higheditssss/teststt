@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top Chatters</title>
+<script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g:#53fc18;--bg:#07090a;--card:#0d1010;--border:rgba(83,252,24,.10);
+  --text:#ccdccc;--muted:rgba(180,210,180,.42);
+  --gold:#FFD700;--silver:#b8c4cc;--bronze:#c87d3a;--red:#ff4d4d;--cyan:#00e5ff;
+}
+
+/* ── Theme Variants ── */
+body[data-theme="green"]{
+  --g:#53fc18;--bg:#07090a;--card:#0d1010;--border:rgba(83,252,24,.10);
+  --text:#ccdccc;--muted:rgba(180,210,180,.42);
+}
+body[data-theme="pink"]{
+  --g:#ff6bcd;--bg:#0a070a;--card:#120a10;--border:rgba(255,107,205,.10);
+  --text:#f0d5e8;--muted:rgba(240,180,220,.42);
+}
+body[data-theme="red"]{
+  --g:#ff4d4d;--bg:#0a0707;--card:#100a0a;--border:rgba(255,77,77,.10);
+  --text:#f0d5d5;--muted:rgba(240,180,180,.42);
+}
+body[data-theme="yellow"]{
+  --g:#ffd93d;--bg:#0a0a07;--card:#100f0a;--border:rgba(255,217,61,.10);
+  --text:#f0ecd5;--muted:rgba(240,230,180,.42);
+}
+body[data-theme="cyan"]{
+  --g:#00e5ff;--bg:#070a0b;--card:#0a0f11;--border:rgba(0,229,255,.10);
+  --text:#d5eff5;--muted:rgba(180,225,240,.42);
+}
+body[data-theme="purple"]{
+  --g:#c77dff;--bg:#0a0710;--card:#0f0a14;--border:rgba(199,125,255,.10);
+  --text:#ead5f5;--muted:rgba(220,180,240,.42);
+}
+body[data-theme="dark"]{
+  --g:#888;--bg:#000;--card:#0a0a0a;--border:rgba(255,255,255,.08);
+  --text:#c0c0c0;--muted:rgba(160,160,160,.42);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;--grid-opacity:.015;--glow-opacity:.03}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--g) 1px,transparent 1px),linear-gradient(90deg,var(--g) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0;opacity:var(--grid-opacity)}
+body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse,var(--g) 0%,transparent 70%);pointer-events:none;z-index:0;opacity:var(--glow-opacity)}
+body[data-theme="dark"]::before{opacity:.01}
+body[data-theme="dark"]::after{opacity:.015}
+
+
+.wrap{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:0 40px 80px;opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s cubic-bezier(.22,1,.36,1)}
+.wrap.show{opacity:1;transform:translateY(0)}
+
+/* ── Setup ── */
+#setup{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;opacity:1;transition:opacity .4s ease,visibility .4s}
+#setup.hiding{opacity:0;pointer-events:none}
+#setup.hidden{display:none}
+.setup-card{background:linear-gradient(135deg, rgba(13,16,16,0.98) 0%, rgba(7,9,10,0.95) 100%);border:1px solid var(--border);border-radius:24px;padding:60px 50px;width:100%;max-width:520px;box-shadow:0 0 100px rgba(83,252,24,0.15), 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);position:relative;overflow:hidden;transform:translateY(0) scale(1);transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .4s ease}
+#setup.hiding .setup-card{transform:translateY(-30px) scale(.95);opacity:0}
+.setup-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg, transparent 0%, var(--g) 50%, transparent 100%);opacity:0.8}
+.setup-card::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:40%;height:1px;background:linear-gradient(90deg, transparent 0%, rgba(83,252,24,0.3) 50%, transparent 100%)}
+.setup-logo{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--g);letter-spacing:0.08em;text-shadow:0 0 20px var(--g);margin-bottom:12px;text-align:center;line-height:1}
+.setup-sub{font-size:15px;color:rgba(180,210,180,0.6);margin-bottom:40px;line-height:1.6;text-align:center;font-weight:300}
+.field{margin-bottom:24px}
+.field label{display:block;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(180,210,180,0.5);margin-bottom:10px}
+.field input{width:100%;background:rgba(83,252,24,0.04);border:1px solid rgba(83,252,24,0.2);border-radius:12px;padding:16px 20px;color:#fff;font-family:'DM Sans',sans-serif;font-size:17px;outline:none;transition:all .3s cubic-bezier(.22,1,.36,1);letter-spacing:0.01em}
+.field input::placeholder{color:rgba(180,210,180,0.3)}
+.field input:focus{border-color:var(--g);box-shadow:0 0 0 4px rgba(83,252,24,0.1), 0 0 20px rgba(83,252,24,0.2);background:rgba(83,252,24,0.06);transform:translateY(-1px)}
+#btn-go{width:100%;background:linear-gradient(135deg, var(--g) 0%, #3fc010 100%);color:#000;border:none;border-radius:12px;padding:18px 24px;font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:0.14em;cursor:pointer;transition:all .3s cubic-bezier(.22,1,.36,1);box-shadow:0 4px 24px rgba(83,252,24,0.4), 0 2px 8px rgba(0,0,0,0.3);position:relative;overflow:hidden;font-weight:500}
+#btn-go::before{content:'';position:absolute;top:50%;left:50%;width:0;height:0;border-radius:50%;background:rgba(255,255,255,0.3);transform:translate(-50%, -50%);transition:width .6s, height .6s}
+#btn-go:hover{transform:translateY(-2px);box-shadow:0 6px 32px rgba(83,252,24,0.5), 0 4px 12px rgba(0,0,0,0.4)}
+#btn-go:hover::before{width:300px;height:300px}
+#btn-go:active{transform:translateY(0px) scale(.98)}
+#btn-go:disabled{opacity:.6;cursor:not-allowed;transform:none}
+#setup-err{margin-top:16px;font-size:13px;color:#ff6b6b;text-align:center;min-height:20px;font-weight:500}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Header ── */
+header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:24px;border-bottom:1px solid var(--border);margin-bottom:32px}
+.header-left{display:flex;align-items:center;gap:18px}
+#ch-avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--border);object-fit:cover;display:none;flex-shrink:0}
+.header-titles h1{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:1;color:var(--g);letter-spacing:.04em;text-shadow:0 0 15px var(--g)}
+.header-titles .ch-name{font-size:15px;color:var(--muted);letter-spacing:.07em;margin-top:4px}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;padding-top:6px}
+#theme-selector{display:flex;gap:6px;align-items:center;padding:4px 8px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:20px}
+.theme-btn{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.theme-btn:hover{transform:scale(1.15);border-color:rgba(255,255,255,.3)}
+.theme-btn.active{border-color:var(--g);box-shadow:0 0 12px var(--g)}
+.theme-btn[data-theme="green"]{background:linear-gradient(135deg,#53fc18,#3fc010)}
+.theme-btn[data-theme="pink"]{background:linear-gradient(135deg,#ff6bcd,#ff3eb5)}
+.theme-btn[data-theme="red"]{background:linear-gradient(135deg,#ff4d4d,#e63939)}
+.theme-btn[data-theme="yellow"]{background:linear-gradient(135deg,#ffd93d,#ffc600)}
+.theme-btn[data-theme="cyan"]{background:linear-gradient(135deg,#00e5ff,#00b8d4)}
+.theme-btn[data-theme="purple"]{background:linear-gradient(135deg,#c77dff,#9d4edd)}
+.theme-btn[data-theme="dark"]{background:linear-gradient(135deg,#333,#111)}
+#live-badge{display:none;align-items:center;gap:7px;background:rgba(255,77,77,.1);border:1px solid rgba(255,77,77,.3);border-radius:20px;padding:5px 14px 5px 10px;font-size:11px;font-weight:600;color:var(--red);letter-spacing:.1em;text-transform:uppercase}
+#live-badge .rdot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 9px var(--red);animation:pulse 1.4s ease-in-out infinite}
+#offline-badge{display:none;align-items:center;gap:7px;background:rgba(136,136,136,.1);border:1px solid rgba(136,136,136,.3);border-radius:20px;padding:5px 14px 5px 10px;font-size:11px;font-weight:600;color:#888;letter-spacing:.1em;text-transform:uppercase}
+#offline-badge .odot{width:8px;height:8px;border-radius:50%;background:#666}
+#live-title{display:none;font-size:11px;color:var(--muted);max-width:340px;text-align:right;line-height:1.4;word-break:break-word}
+#conn-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
+#conn-dot{width:7px;height:7px;border-radius:50%;background:#333;transition:background .4s}
+#conn-dot.live{background:var(--g);box-shadow:0 0 7px var(--g);animation:pulse 2s infinite}
+#conn-dot.error{background:var(--red);box-shadow:0 0 7px var(--red)}
+#conn-dot.waiting{background:#ffaa00}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes slideUp{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(-20px)}}
+
+/* ── Stats ── */
+.stats-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:32px;justify-content:center}
+.stat-chip{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 24px;flex:1;min-width:160px;max-width:240px}
+.stat-chip .val{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--g);line-height:1;letter-spacing:.03em}
+.stat-chip .lbl{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-weight:500;margin-top:4px}
+
+/* ── Podium Section ── */
+#podium-section{display:none;gap:24px;margin-bottom:20px;align-items:flex-start}
+@media (min-width:1100px){#podium-section{display:flex}}
+@media (max-width:1099px){#podium-section{display:block}#activity-graph-wrap{margin-top:20px}}
+
+/* ── Podium Top 3 ── */
+#podium-wrap{display:none;flex:1;min-width:0}
+#podium{display:flex;align-items:flex-end;justify-content:center;gap:24px;margin-bottom:12px}
+.podium-place{display:flex;flex-direction:column;align-items:center;gap:10px;position:relative}
+.podium-place.p1{order:2}
+.podium-place.p2{order:1}
+.podium-place.p3{order:3}
+.podium-avatar-wrap{position:relative;display:inline-block;cursor:pointer;transition:transform .3s ease}
+.podium-avatar-wrap:hover{transform:translateY(-4px)}
+.podium-avatar{width:90px;height:90px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:36px;color:#000;border:3px solid;position:relative;flex-shrink:0;overflow:hidden;background-size:cover;background-position:center;transition:all .3s ease}
+.podium-avatar-wrap:hover .podium-avatar{transform:scale(1.05)}
+.p1 .podium-avatar{border-color:var(--gold);width:110px;height:110px;font-size:42px}
+.p2 .podium-avatar{border-color:var(--silver)}
+.p3 .podium-avatar{border-color:var(--bronze)}
+.podium-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.podium-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;max-width:140px;text-align:center;word-break:break-word;line-height:1.1;cursor:pointer;transition:all .2s ease}
+.podium-name:hover{transform:scale(1.08);opacity:.8}
+.p1 .podium-name{color:var(--gold);font-size:26px}
+.p1 .podium-name:hover{opacity:.8}
+.p2 .podium-name{color:var(--silver)}
+.p2 .podium-name:hover{opacity:.8}
+.p3 .podium-name{color:var(--bronze)}
+.p3 .podium-name:hover{opacity:.8}
+.podium-count{font-size:15px;color:var(--muted);font-family:'DM Mono',monospace}
+.podium-bar{width:120px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px 12px 0 0;transition:height .5s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
+.p1 .podium-bar{height:170px;background:linear-gradient(180deg,rgba(255,215,0,.08),rgba(255,215,0,.02));border-color:rgba(255,215,0,.2)}
+.p2 .podium-bar{height:135px;background:linear-gradient(180deg,rgba(184,196,204,.06),rgba(184,196,204,.01));border-color:rgba(184,196,204,.15)}
+.p3 .podium-bar{height:105px;background:linear-gradient(180deg,rgba(200,125,58,.06),rgba(200,125,58,.01));border-color:rgba(200,125,58,.15)}
+.podium-bar::before{content:'';position:absolute;bottom:0;left:0;right:0;height:5px}
+.p1 .podium-bar::before{background:var(--gold)}
+.p2 .podium-bar::before{background:var(--silver)}
+.p3 .podium-bar::before{background:var(--bronze)}
+.podium-rank{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-family:'Bebas Neue',sans-serif;font-size:54px;opacity:.15}
+.p1 .podium-rank{color:var(--gold);font-size:60px}
+.p2 .podium-rank{color:var(--silver)}
+.p3 .podium-rank{color:var(--bronze)}
+
+/* ── Activity Panels ── */
+#activity-panels{flex:0 0 420px;min-width:0;display:none;flex-direction:column;gap:12px}
+.activity-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.activity-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:.4}
+.panel-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.panel-icon{font-size:24px;flex-shrink:0}
+.panel-title{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--g);letter-spacing:.08em;text-shadow:0 0 20px var(--g);line-height:1}
+.panel-subtitle{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:3px}
+
+/* Top Emotes */
+#top-emotes-list{display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto}
+#top-emotes-list::-webkit-scrollbar{width:4px}
+#top-emotes-list::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+#top-emotes-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.emote-item{display:flex;align-items:center;gap:10px;padding:8px;background:rgba(255,255,255,.02);border-radius:8px;transition:all .2s}
+.emote-item:hover{background:rgba(255,255,255,.04);transform:translateX(3px)}
+.emote-rank{font-family:'Bebas Neue',sans-serif;font-size:16px;color:rgba(200,225,200,.3);width:20px;text-align:center}
+.emote-img{width:32px;height:32px;object-fit:contain;flex-shrink:0}
+.emote-info{flex:1;min-width:0}
+.emote-name{font-size:11px;font-weight:600;color:var(--text);text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.emote-count{font-family:'DM Mono',monospace;font-size:13px;color:var(--g);font-weight:600}
+
+/* ── Dice button ── */
+#dice-btn-wrap{display:none;justify-content:center;margin-bottom:22px}
+#dice-btn{
+  display:flex;align-items:center;gap:10px;
+  background:linear-gradient(135deg,#1a0a00,#2d1500);
+  border:1px solid rgba(255,165,0,.4);
+  border-radius:12px;padding:10px 28px;
+  font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.1em;
+  color:#ff9f1c;cursor:pointer;
+  transition:all .2s;box-shadow:0 0 20px rgba(255,159,28,.12);
+}
+#dice-btn:hover{border-color:rgba(255,165,0,.8);box-shadow:0 0 32px rgba(255,159,28,.25);transform:translateY(-1px)}
+#dice-btn:active{transform:scale(.97)}
+#dice-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.dice-icon{font-size:22px;display:inline-block;transition:transform .15s}
+#dice-btn:hover .dice-icon{transform:rotate(20deg)}
+
+/* ── Board ── */
+#board{display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:8px;align-items:start}
+@media (max-width:1000px){#board{grid-template-columns:1fr}}
+#empty{text-align:center;padding:70px 20px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:14px;grid-column:1/-1}
+#empty .ico{font-size:44px;opacity:.35}
+.row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;transition:border-color .25s,transform .25s;animation:rowIn .3s cubic-bezier(.22,1,.36,1) both}
+.row:hover{border-color:rgba(83,252,24,.2);transform:translateX(3px)}
+.row.r1{border-color:rgba(255,215,0,.22);background:rgba(255,215,0,.03)}
+.row.r2{border-color:rgba(184,196,204,.18)}
+.row.r3{border-color:rgba(200,125,58,.2);background:rgba(200,125,58,.02)}
+.row.r1::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);box-shadow:0 0 10px var(--gold);border-radius:10px 0 0 10px}
+.row.r2::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--silver);box-shadow:0 0 8px var(--silver);border-radius:10px 0 0 10px}
+.row.r3::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--bronze);box-shadow:0 0 8px var(--bronze);border-radius:10px 0 0 10px}
+@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.rank{font-family:'Bebas Neue',sans-serif;font-size:20px;width:34px;text-align:center;flex-shrink:0;line-height:1}
+.r1 .rank{color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.5)}
+.r2 .rank{color:var(--silver)} .r3 .rank{color:var(--bronze)} .rn .rank{color:rgba(200,225,200,.2)}
+.avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:14px;color:#000;object-fit:cover;border:2px solid transparent}
+.avatar.has-img{background:none;color:transparent}
+.avatar.mod-user{border-color:var(--g);box-shadow:0 0 8px rgba(83,252,24,.4)}
+.info{flex:1;min-width:0}
+.uname{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.mod-badge{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--g),#3fc010);border-radius:5px;padding:3px 8px;font-size:10px;font-weight:800;color:#000;letter-spacing:.1em;text-transform:uppercase;box-shadow:0 0 12px rgba(83,252,24,.5),0 2px 8px rgba(0,0,0,.3);flex-shrink:0;border:1px solid rgba(0,0,0,.1)}
+.seventv-badge{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#00a8fc,#0084d4);border-radius:5px;padding:3px 8px;font-size:10px;font-weight:800;color:#fff;letter-spacing:.1em;text-transform:uppercase;box-shadow:0 0 12px rgba(0,168,252,.5),0 2px 8px rgba(0,0,0,.3);flex-shrink:0;border:1px solid rgba(0,0,0,.1)}
+.badge-7tv-img{height:18px;width:auto;vertical-align:middle;margin:0 2px;display:inline-block;image-rendering:-webkit-optimize-contrast;flex-shrink:0}
+.badge-7tv-podium{height:20px;width:auto;vertical-align:middle;margin-left:6px;display:inline-block;image-rendering:-webkit-optimize-contrast}
+.seventv-badge-podium{display:inline-block;background:linear-gradient(135deg,#00a8fc,#0084d4);border-radius:4px;padding:2px 6px;font-size:9px;font-weight:800;color:#fff;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 0 8px rgba(0,168,252,.4);margin-left:6px;vertical-align:middle}
+.bar-wrap{width:100%;height:3px;background:rgba(255,255,255,.05);border-radius:2px;margin-top:5px;overflow:hidden}
+.bar{height:100%;border-radius:2px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+.crown{font-size:18px;flex-shrink:0;animation:crownBob 2s ease-in-out infinite}
+.crown.off{filter:grayscale(1);opacity:.25;animation:none}
+@keyframes crownBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
+.count{text-align:right;flex-shrink:0;min-width:52px}
+.count .num{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--g);display:block}
+.count .lbl{font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.divider{grid-column:1/-1;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(200,220,200,.15);padding:12px 0 8px;font-weight:600}
+
+/* ── Reset ── */
+#reset-wrap{display:none;justify-content:center;margin-top:32px}
+#btn-reset{background:transparent;border:1px solid rgba(255,77,77,.25);color:rgba(255,77,77,.55);border-radius:8px;padding:9px 22px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
+#btn-reset:hover{border-color:var(--red);color:var(--red);background:rgba(255,77,77,.07)}
+
+/* ── Password Reset Modal ── */
+#password-modal{
+  position:fixed;inset:0;z-index:300;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.9);backdrop-filter:blur(10px);
+  padding:20px;
+}
+#password-modal.open{display:flex}
+#password-box{
+  background:var(--card);
+  border:1px solid rgba(255,77,77,.3);
+  border-radius:18px;
+  padding:32px 36px;
+  width:100%;max-width:420px;
+  box-shadow:0 0 80px rgba(255,77,77,.12),0 30px 60px rgba(0,0,0,.6);
+  position:relative;overflow:hidden;
+}
+#password-box::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--red),transparent);
+}
+#password-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:28px;color:var(--red);
+  letter-spacing:.05em;margin-bottom:8px;
+  text-shadow:0 0 20px rgba(255,77,77,.3);
+}
+#password-desc{
+  font-size:13px;color:var(--muted);
+  line-height:1.6;margin-bottom:24px;
+}
+#password-input{
+  width:100%;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,77,77,.2);
+  border-radius:8px;padding:12px 16px;
+  color:#fff;font-family:'DM Mono',monospace;
+  font-size:16px;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+  margin-bottom:6px;
+}
+#password-input:focus{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(255,77,77,.1);
+}
+#password-hint{
+  font-size:11px;color:rgba(180,210,180,.35);
+  margin-bottom:20px;text-align:center;
+  line-height:1.5;
+}
+#password-hint a{
+  color:var(--g);text-decoration:none;
+  transition:opacity .2s;
+}
+#password-hint a:hover{opacity:.7}
+#password-buttons{
+  display:flex;gap:10px;
+}
+#password-confirm,#password-cancel{
+  flex:1;border:none;border-radius:8px;
+  padding:11px;font-family:'Bebas Neue',sans-serif;
+  font-size:18px;letter-spacing:.08em;
+  cursor:pointer;transition:all .2s;
+}
+#password-confirm{
+  background:var(--red);color:#fff;
+  box-shadow:0 4px 20px rgba(255,77,77,.25);
+}
+#password-confirm:hover{opacity:.85}
+#password-confirm:disabled{opacity:.4;cursor:not-allowed}
+#password-cancel{
+  background:rgba(255,255,255,.05);color:var(--muted);
+  border:1px solid rgba(255,255,255,.1);
+}
+#password-cancel:hover{background:rgba(255,255,255,.08)}
+#password-error{
+  font-size:12px;color:var(--red);
+  text-align:center;margin-top:12px;
+  min-height:16px;
+}
+
+
+/* ── User messages modal ── */
+#user-modal{
+  position:fixed;inset:0;z-index:250;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+  padding:20px;
+}
+#user-modal.open{ display:flex; }
+#user-box{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  width:100%;max-width:520px;
+  max-height:85vh;
+  display:flex;flex-direction:column;
+  box-shadow:0 0 80px var(--border),0 40px 80px rgba(0,0,0,.7);
+  position:relative;overflow:hidden;
+  transform:scale(.9) translateY(20px);opacity:0;
+  transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .3s ease;
+}
+#user-modal.open #user-box{transform:scale(1) translateY(0);opacity:1}
+#user-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent)}
+
+#user-header{
+  padding:20px 22px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+}
+#user-header-avatar{
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:18px;color:#000;
+  flex-shrink:0;overflow:hidden;
+}
+#user-header-info{flex:1;min-width:0}
+#user-header-name{
+  font-family:'Bebas Neue',sans-serif;font-size:22px;
+  letter-spacing:.04em;line-height:1;
+}
+#user-header-stats{
+  font-size:11px;color:var(--muted);margin-top:3px;
+  font-family:'DM Mono',monospace;
+}
+#user-close{
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.5);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;flex-shrink:0;
+}
+#user-close:hover{background:rgba(255,77,77,.15);border-color:var(--red);color:var(--red)}
+
+#user-msgs-list{
+  flex:1;overflow-y:auto;padding:10px 0 10px;
+}
+.umsg{
+  padding:9px 22px;display:flex;gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  align-items:flex-start;
+  animation:msgSlide .2s ease both;
+}
+.umsg:last-child{border-bottom:none}
+@keyframes msgSlide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.umsg-time{
+  font-family:'DM Mono',monospace;font-size:10px;
+  color:rgba(180,210,180,.3);flex-shrink:0;margin-top:2px;
+  letter-spacing:.03em;
+}
+.umsg-text{font-size:13px;color:#d0e8d0;line-height:1.5;word-break:break-word}
+.umsg-text .emote,
+.emote{
+  height:24px;
+  width:auto;
+  vertical-align:middle;
+  margin:0 2px;
+  display:inline-block;
+  image-rendering:-webkit-optimize-contrast;
+  image-rendering:crisp-edges;
+}
+#user-empty-msgs{
+  text-align:center;padding:40px 20px;
+  color:var(--muted);font-size:13px;
+}
+
+/* row hover hint */
+.row{transition:border-color .25s,transform .25s,background .2s}
+.row:hover::after{
+  content:'ver mesaje →';position:absolute;right:12px;bottom:5px;
+  font-size:9px;letter-spacing:.08em;color:rgba(83,252,24,.35);
+  text-transform:uppercase;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DICE MODAL
+══════════════════════════════════════════════════════════ */
+#dice-modal{
+  position:fixed;inset:0;z-index:300;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0);
+  backdrop-filter:blur(0px);
+  transition:background .4s, backdrop-filter .4s;
+}
+#dice-modal.open{
+  display:flex;
+  background:rgba(0,0,0,.85);
+  backdrop-filter:blur(8px);
+}
+
+#modal-box{
+  background:#0a0e0a;
+  border:1px solid rgba(83,252,24,.25);
+  border-radius:20px;
+  padding:44px 50px 40px;
+  width:100%;max-width:480px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+  transform:scale(.85);opacity:0;
+  transition:transform .45s cubic-bezier(.22,1,.36,1), opacity .35s ease;
+  box-shadow:0 0 100px rgba(83,252,24,.08), 0 40px 80px rgba(0,0,0,.7);
+}
+#dice-modal.open #modal-box{transform:scale(1);opacity:1}
+
+#modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent)}
+
+#modal-title{
+  font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.18em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:36px;
+}
+
+/* ── 3D Dice ── */
+.dice-scene{
+  width:100px;height:100px;
+  perspective:500px;
+  margin:0 auto 40px;
+  cursor:pointer;
+}
+
+.dice-cube{
+  width:100px;height:100px;
+  position:relative;
+  transform-style:preserve-3d;
+  transform:rotateX(20deg) rotateY(30deg);
+  transition:transform 0.1s linear;
+}
+
+.dice-cube.spinning{
+  animation:diceRoll 0.15s linear infinite;
+}
+
+.dice-cube.landing{
+  transition:transform 1.4s cubic-bezier(.2,.8,.4,1);
+}
+
+@keyframes diceRoll{
+  0%  {transform:rotateX(0deg)   rotateY(0deg)   rotateZ(0deg)}
+  25% {transform:rotateX(90deg)  rotateY(180deg) rotateZ(90deg)}
+  50% {transform:rotateX(180deg) rotateY(90deg)  rotateZ(180deg)}
+  75% {transform:rotateX(270deg) rotateY(270deg) rotateZ(270deg)}
+  100%{transform:rotateX(360deg) rotateY(360deg) rotateZ(360deg)}
+}
+
+.face{
+  position:absolute;
+  width:100px;height:100px;
+  background:#0f1a0f;
+  border:2px solid rgba(83,252,24,.35);
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  backface-visibility:hidden;
+  box-shadow:inset 0 0 20px rgba(83,252,24,.05);
+}
+.face.front {transform:translateZ(50px)}
+.face.back  {transform:rotateY(180deg) translateZ(50px)}
+.face.right {transform:rotateY(90deg)  translateZ(50px)}
+.face.left  {transform:rotateY(-90deg) translateZ(50px)}
+.face.top   {transform:rotateX(90deg)  translateZ(50px)}
+.face.bottom{transform:rotateX(-90deg) translateZ(50px)}
+
+/* Dots layout */
+.dots{display:grid;width:72px;height:72px;gap:5px;padding:4px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)}
+.face[data-face="1"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;place-items:center}
+.face[data-face="2"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.face[data-face="3"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+.face[data-face="4"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.face[data-face="5"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+.face[data-face="6"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+
+/* Winner reveal */
+#winner-section{display:none;animation:winnerPop .5s cubic-bezier(.22,1,.36,1)}
+@keyframes winnerPop{from{opacity:0;transform:scale(.8) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+#winner-label{
+  font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.2em;
+  color:var(--muted);margin-bottom:10px;
+}
+
+#winner-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:52px;line-height:1;
+  letter-spacing:.04em;
+  color:var(--gold);
+  text-shadow:0 0 40px rgba(255,215,0,.5), 0 0 80px rgba(255,215,0,.2);
+  margin-bottom:6px;
+  word-break:break-all;
+}
+
+#winner-msgs{
+  font-family:'DM Mono',monospace;font-size:13px;
+  color:var(--muted);margin-bottom:28px;
+}
+
+.confetti-line{
+  display:flex;justify-content:center;gap:6px;font-size:22px;
+  margin-bottom:24px;animation:confettiWave 1s ease infinite alternate;
+}
+@keyframes confettiWave{from{letter-spacing:4px}to{letter-spacing:10px}}
+
+#roll-again-btn{
+  background:var(--g);color:#000;border:none;border-radius:9px;
+  padding:11px 30px;font-family:'Bebas Neue',sans-serif;font-size:18px;
+  letter-spacing:.1em;cursor:pointer;transition:opacity .2s,transform .15s;
+  margin-right:10px;
+}
+#roll-again-btn:hover{opacity:.88} #roll-again-btn:active{transform:scale(.97)}
+
+#close-modal-btn{
+  background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.45);
+  border-radius:9px;padding:11px 22px;font-family:'DM Sans',sans-serif;
+  font-size:14px;cursor:pointer;transition:all .2s;
+}
+#close-modal-btn:hover{border-color:rgba(255,255,255,.4);color:rgba(255,255,255,.8)}
+
+/* Glow ring during spin */
+.dice-scene.rolling::after{
+  content:'';position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:140px;height:140px;border-radius:50%;
+  background:radial-gradient(circle,rgba(83,252,24,.18),transparent 70%);
+  animation:ringPulse .6s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+@keyframes ringPulse{from{opacity:.3;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1.15)}}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(83,252,24,.15);border-radius:2px}
+@media(max-width:520px){.header-titles h1{font-size:34px}.wrap{padding:0 14px 50px}.setup-card{padding:28px 22px}.stat-chip{min-width:90px}#winner-name{font-size:38px}#modal-box{padding:32px 24px 28px}}
+</style>
+</head>
+<body>
+
+<!-- ── Login Modal ── -->
+<script>
+// Instant hide to prevent flicker - runs before page render
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('user')){
+    document.write('<style>#setup{display:none!important}</style>');
+  }
+})();
+</script>
+
+<!-- ── Setup ── -->
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">TOP CHATTERS</div>
+    <p class="setup-sub">Monitorizează cei mai activi chatteri live pe orice canal Kick</p>
+    <div class="field">
+      <label>Username canal</label>
+      <input id="inp-user" type="text" placeholder="ex: highman" value="highman" autocomplete="off" spellcheck="false">
+    </div>
+    <button id="btn-go">START ⚡</button>
+    <div id="setup-err"></div>
+  </div>
+</div>
+
+<!-- ── Dice Modal ── -->
+<div id="dice-modal">
+  <div id="modal-box">
+    <div id="modal-title">🎲 Tragere la sorți</div>
+
+    <div class="dice-scene" id="dice-scene">
+      <div class="dice-cube" id="dice-cube">
+        <!-- 1 -->
+        <div class="face front" data-face="1">
+          <div class="dots" style="display:grid;place-items:center">
+            <div class="dot" style="grid-column:2;grid-row:2"></div>
+          </div>
+        </div>
+        <!-- 6 -->
+        <div class="face back" data-face="6">
+          <div class="dots">
+            <div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div>
+          </div>
+        </div>
+        <!-- 3 -->
+        <div class="face right" data-face="3">
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr">
+            <div class="dot" style="grid-column:3;grid-row:1"></div>
+            <div class="dot" style="grid-column:2;grid-row:2"></div>
+            <div class="dot" style="grid-column:1;grid-row:3"></div>
+          </div>
+        </div>
+        <!-- 4 -->
+        <div class="face left" data-face="4">
+          <div class="dots">
+            <div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div>
+          </div>
+        </div>
+        <!-- 2 -->
+        <div class="face top" data-face="2">
+          <div class="dots">
+            <div class="dot" style="grid-column:1;grid-row:1"></div>
+            <div class="dot" style="grid-column:2;grid-row:2"></div>
+          </div>
+        </div>
+        <!-- 5 -->
+        <div class="face bottom" data-face="5">
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr">
+            <div class="dot" style="grid-column:1;grid-row:1"></div>
+            <div class="dot" style="grid-column:3;grid-row:1"></div>
+            <div class="dot" style="grid-column:2;grid-row:2"></div>
+            <div class="dot" style="grid-column:1;grid-row:3"></div>
+            <div class="dot" style="grid-column:3;grid-row:3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="winner-section">
+      <div class="confetti-line">BAVOOO</div>
+      <div id="winner-label">CÂȘTIGĂTORUL ESTE</div>
+      <div id="winner-name">—</div>
+      <div id="winner-msgs">— mesaje totale</div>
+      <div>
+        <button id="roll-again-btn">🎲 Trage din nou</button>
+        <button id="close-modal-btn">Închide</button>
+      </div>
+    </div>
+
+    <div id="spin-hint" style="font-size:13px;color:var(--muted);margin-top:8px">
+      Apasă pe zar ca să tragi la sorți!
+    </div>
+  </div>
+</div>
+
+<!-- ── Password Reset Modal ── -->
+<div id="password-modal">
+  <div id="password-box">
+    <div id="password-title">🔒 RESETARE STATISTICI</div>
+    <div id="password-desc">
+      Această acțiune va șterge toate statisticile curente.<br>
+      Introdu parola pentru a continua:
+    </div>
+    <input type="password" id="password-input" placeholder="Introdu parola..." autocomplete="off">
+    <div id="password-hint">
+      Nu știi parola? Scrie pe Instagram la<br>
+      <a href="https://instagram.com/highman.edits" target="_blank">@highman.edits</a>
+    </div>
+    <div id="password-buttons">
+      <button id="password-cancel">Anulează</button>
+      <button id="password-confirm">Resetează</button>
+    </div>
+    <div id="password-error"></div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div class="wrap">
+  <header>
+    <div class="header-left">
+      <img id="ch-avatar" src="" alt="avatar">
+      <div class="header-titles">
+        <h1>TOP CHATTERS</h1>
+        <div class="ch-name" id="ch-name"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="theme-selector" title="Schimbă tema">
+        <div class="theme-btn active" data-theme="green"></div>
+        <div class="theme-btn" data-theme="pink"></div>
+        <div class="theme-btn" data-theme="red"></div>
+        <div class="theme-btn" data-theme="yellow"></div>
+        <div class="theme-btn" data-theme="cyan"></div>
+        <div class="theme-btn" data-theme="purple"></div>
+        <div class="theme-btn" data-theme="dark"></div>
+      </div>
+      <div id="live-badge"><div class="rdot"></div> LIVE</div>
+      <div id="offline-badge"><div class="odot"></div> OFFLINE</div>
+      <div id="live-title"></div>
+      <div id="conn-badge"><div id="conn-dot"></div><span id="conn-txt">se conectează...</span></div>
+    </div>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-chip"><div class="val" id="s-total">0</div><div class="lbl">Mesaje totale</div></div>
+    <div class="stat-chip"><div class="val" id="s-users">0</div><div class="lbl">Chatteri unici</div></div>
+    <div class="stat-chip"><div class="val" id="s-mpm">0</div><div class="lbl">Msg / minut</div></div>
+    <div class="stat-chip"><div class="val" id="s-viewers">—</div><div class="lbl">Viewers live</div></div>
+    <div class="stat-chip"><div class="val" id="s-peak">—</div><div class="lbl">Peak viewers</div></div>
+  </div>
+  
+  <!-- Cache Info (hidden by default) -->
+  <div id="cache-info" style="display:none;text-align:center;margin:12px 0;font-size:12px;color:var(--muted);opacity:0.7;">
+    📦 <span id="cache-msg"></span>
+  </div>
+
+  <!-- Podium + Activity Graph Section -->
+  <div id="podium-section">
+    <!-- Top 3 Podium -->
+    <div id="podium-wrap">
+      <div id="podium">
+        <!-- Locul 1 (mijloc) -->
+        <div class="podium-place p1">
+          <div class="podium-avatar-wrap">
+            <div class="podium-avatar" id="pod-avatar-1"></div>
+          </div>
+          <div class="podium-name" id="pod-name-1">—</div>
+          <div class="podium-count" id="pod-count-1">0 msg</div>
+          <div class="podium-bar">
+            <div class="podium-rank">1</div>
+          </div>
+        </div>
+        
+        <!-- Locul 2 (stânga) -->
+        <div class="podium-place p2">
+          <div class="podium-avatar-wrap">
+            <div class="podium-avatar" id="pod-avatar-2"></div>
+          </div>
+          <div class="podium-name" id="pod-name-2">—</div>
+          <div class="podium-count" id="pod-count-2">0 msg</div>
+          <div class="podium-bar">
+            <div class="podium-rank">2</div>
+          </div>
+        </div>
+        
+        <!-- Locul 3 (dreapta) -->
+        <div class="podium-place p3">
+          <div class="podium-avatar-wrap">
+            <div class="podium-avatar" id="pod-avatar-3"></div>
+          </div>
+          <div class="podium-name" id="pod-name-3">—</div>
+          <div class="podium-count" id="pod-count-3">0 msg</div>
+          <div class="podium-bar">
+            <div class="podium-rank">3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Panels -->
+    <div id="activity-panels">
+      <!-- Top Emotes -->
+      <div class="activity-panel" id="top-emotes-panel">
+        <div class="panel-header">
+          <div class="panel-icon">😀</div>
+          <div>
+            <div class="panel-title">TOP EMOTES</div>
+            <div class="panel-subtitle">Cele mai folosite</div>
+          </div>
+        </div>
+        <div id="top-emotes-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dice trigger button -->
+  <div id="dice-btn-wrap">
+    <button id="dice-btn">
+      <span class="dice-icon">🎲</span>
+      TRAGERE LA SORȚI
+    </button>
+  </div>
+
+  <div id="board">
+    <div id="empty"><div class="ico">💬</div><div>Așteptând mesaje din chat...</div></div>
+  </div>
+
+  <div id="reset-wrap">
+    <button id="btn-reset">🔄 Resetează statistici</button>
+  </div>
+</div>
+
+<!-- ── User Messages Modal ── -->
+<div id="user-modal">
+  <div id="user-box">
+    <div id="user-header">
+      <div id="user-header-avatar"></div>
+      <div id="user-header-info">
+        <div id="user-header-name"></div>
+        <div id="user-header-stats"></div>
+      </div>
+      <button id="user-close">✕</button>
+    </div>
+    <div id="user-msgs-list">
+      <div id="user-empty-msgs">Niciun mesaj salvat.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// PASSWORD HASHING FOR RESET
+// ══════════════════════════════════════════════════
+const RESET_PASS_HASH = '358c4028dabfb70421ffcc9b33ca0a986f6f5fcf07abd8251de6d80c1f7087fe';
+
+async function hashPassword(password) {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── State ──────────────────────────────────────────
+const counts   = {};   // username → message count
+const messages = {};   // username → [{text, time}]
+const userMeta = {};   // username → {isMod, avatar}
+const emotesMap = {};  // emote name → emote data (7TV)
+const MAX_MSGS_PER_USER = 200;
+let totalMsgs=0,isLive=false,chatroomId=null,channelUser='';
+let pusher,chan,mpmBuf=[],renderTid=null;
+let peakViewers=0;
+const TOP=50;
+
+// Activity panels
+let emoteUsage = {}; // emote name → count
+let sessionStartTime = Date.now();
+let maxMsgPerSecond = 0;
+// ══════════════════════════════════════════════════
+// 7TV EMOTE & PAINT INTEGRATION
+// ══════════════════════════════════════════════════
+
+// Kick user ID for the channel (filled after /api/channel loads)
+let channelKickUserId = null;
+
+// Load 7TV emotes for the channel directly from 7TV CDN (CORS allowed)
+async function load7TVEmotes(kickUserId) {
+  if (!kickUserId) return;
+  try {
+    const res = await fetch(`https://7tv.io/v3/users/kick/${kickUserId}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const emotes = data?.emote_set?.emotes || [];
+    emotes.forEach(e => {
+      emotesMap[e.name] = {
+        id: e.id, name: e.name,
+        url:   `https://cdn.7tv.app/emote/${e.id}/1x.webp`,
+        url2x: `https://cdn.7tv.app/emote/${e.id}/2x.webp`,
+        url4x: `https://cdn.7tv.app/emote/${e.id}/4x.webp`
+      };
+    });
+    // console.log(`[7TV] ${emotes.length} emote incarcate pentru canal`);
+  } catch(e) {
+    // console.warn('[7TV] emotes error:', e.message);
+  }
+}
+
+// Convert 7TV RGBA int (0xRRGGBBAA) to CSS hex
+function argbToHex(color) {
+  const u = color >>> 0;
+  const r = (u >> 24) & 0xFF;
+  const g = (u >> 16) & 0xFF;
+  const b = (u >>  8) & 0xFF;
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+// Load 7TV paint + badge for a chatter using v3 REST API
+// ── Load user avatar from Kick API ─────────────────
+async function loadKickUserAvatar(username) {
+  if (!username) return null;
+  try {
+    // Use our proxy endpoint instead of calling Kick API directly (CORS issue)
+    // console.log(`[AVATAR API] Fetching avatar for ${username} via /api/channel...`);
+    const res = await fetch(`/api/channel?user=${encodeURIComponent(username)}`);
+    
+    if (!res.ok) {
+      // console.log(`[AVATAR API] ✗ Failed to fetch avatar for ${username}: HTTP ${res.status}`);
+      return null;
+    }
+    
+    const data = await res.json();
+    // console.log(`[AVATAR API] Response for ${username}:`, data);
+    
+    if (data.avatar) {
+      // console.log(`[AVATAR API] ✓ Avatar găsit pentru ${username}:`, data.avatar);
+      return data.avatar;
+    } else {
+      // console.log(`[AVATAR API] ⚠ No avatar field in response for ${username}`);
+      return null;
+    }
+  } catch (err) {
+    // console.error(`[AVATAR API] ✗ Exception fetching avatar for ${username}:`, err);
+    return null;
+  }
+}
+
+// ── Load 7TV user style (paint + badge) ────────────
+async function load7TVUserStyle(kickUserId) {
+  if (!kickUserId) return null;
+  try {
+    const res = await fetch(`https://7tv.io/v3/users/kick/${kickUserId}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    const result = { 
+      paint: null, 
+      paintColor: null, 
+      paintIsImage: false,
+      paintImageUrl: null,
+      badge: null 
+    };
+
+    const userStyle = data?.user?.style;
+    if (!userStyle || (!userStyle.color && !userStyle.badge_id && !userStyle.paint_id)) {
+      return null;
+    }
+
+    // Paint from paint_id (gradients, animated paints)
+    const paintId = userStyle.paint_id;
+    if (paintId) {
+      const paint = data?.user?.style?.paint;
+      if (paint) {
+        // Check if it's a gradient
+        if (paint.function === 'LINEAR_GRADIENT' || paint.function === 'RADIAL_GRADIENT') {
+          const stops = paint.stops || [];
+          if (stops.length > 0) {
+            const gradientStops = stops.map(stop => {
+              const color = stop.color >>> 0;
+              const r = (color >> 24) & 0xFF;
+              const g = (color >> 16) & 0xFF;
+              const b = (color >> 8) & 0xFF;
+              const a = (color & 0xFF) / 255;
+              const pos = (stop.at * 100).toFixed(0);
+              return `rgba(${r},${g},${b},${a}) ${pos}%`;
+            }).join(', ');
+            
+            if (paint.function === 'LINEAR_GRADIENT') {
+              const angle = paint.angle || 0;
+              result.paint = `linear-gradient(${angle}deg, ${gradientStops})`;
+            } else {
+              result.paint = `radial-gradient(circle, ${gradientStops})`;
+            }
+            
+            // Use first color as solid fallback
+            const firstColor = stops[0].color >>> 0;
+            const r = (firstColor >> 24) & 0xFF;
+            const g = (firstColor >> 16) & 0xFF;
+            const b = (firstColor >> 8) & 0xFF;
+            result.paintColor = `rgb(${r},${g},${b})`;
+          }
+        }
+        // Check if it's an image/animated paint
+        else if (paint.function === 'URL') {
+          result.paintIsImage = true;
+          result.paintImageUrl = paint.image_url || `https://cdn.7tv.app/paint/${paintId}`;
+          result.paint = null; // Will use image instead
+          result.paintColor = '#00a8fc'; // Default 7TV blue fallback
+        }
+      }
+      // If paint_id exists but no paint object, we'll fall through to color fallback below
+    }
+
+    // Fallback: Paint from v3 style.color field (simple solid color or when paint object missing)
+    if (!result.paint && !result.paintIsImage && userStyle.color != null) {
+      const color = userStyle.color >>> 0;
+      const r = (color >> 24) & 0xFF;
+      const g = (color >> 16) & 0xFF;
+      const b = (color >> 8) & 0xFF;
+      const a = (color & 0xFF) / 255;
+      
+      if (a < 1 && a > 0) {
+        result.paint = `rgba(${r},${g},${b},${a.toFixed(2)})`;
+        result.paintColor = `rgb(${r},${g},${b})`;
+      } else {
+        result.paint = `rgb(${r},${g},${b})`;
+        result.paintColor = result.paint;
+      }
+    }
+
+    // Badge from v3 style.badge_id
+    const badgeId = userStyle.badge_id;
+    if (badgeId) {
+      result.badge = {
+        id: badgeId,
+        name: '7TV Badge',
+        url: `https://cdn.7tv.app/badge/${badgeId}/1x.webp`,
+        url2x: `https://cdn.7tv.app/badge/${badgeId}/2x.webp`,
+        url4x: `https://cdn.7tv.app/badge/${badgeId}/3x.webp`
+      };
+    }
+
+    return (result.paint || result.paintIsImage || result.badge) ? result : null;
+  } catch(e) {
+    // console.error('[7TV] Error loading user style:', e);
+    return null;
+  }
+}
+
+
+// Load Kick native emotes (global + channel-specific)
+async function loadKickEmotes(channelSlug) {
+  try {
+    // Load global Kick emotes
+    const globalRes = await fetch('https://emotes.kick.com/emotes');
+    if (globalRes.ok) {
+      const globalEmotes = await globalRes.json();
+      
+      globalEmotes.forEach(emote => {
+        if (!emotesMap[emote.name]) {  // Don't override 7TV emotes
+          emotesMap[emote.name] = {
+            id: emote.id,
+            name: emote.name,
+            url: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+            url2x: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+            url4x: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+            isKick: true
+          };
+        }
+      });
+      
+      // console.log(`✓ ${globalEmotes.length} emote globale Kick încărcate`);
+    }
+    
+    // Load channel-specific emotes if we have a channel slug
+    if (channelSlug) {
+      try {
+        const channelRes = await fetch(`https://kick.com/api/v2/channels/${channelSlug}`);
+        if (channelRes.ok) {
+          const channelData = await channelRes.json();
+          const chatroom = channelData?.chatroom;
+          
+          if (chatroom?.emotes) {
+            chatroom.emotes.forEach(emote => {
+              if (!emotesMap[emote.name]) {  // Don't override 7TV or global emotes
+                emotesMap[emote.name] = {
+                  id: emote.id,
+                  name: emote.name,
+                  url: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+                  url2x: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+                  url4x: emote.url || `https://files.kick.com/emotes/${emote.id}/fullsize`,
+                  isKick: true,
+                  isChannelEmote: true
+                };
+              }
+            });
+            
+            // console.log(`✓ ${chatroom.emotes.length} emote de canal Kick încărcate pentru ${channelSlug}`);
+          }
+        }
+      } catch(e) {
+        // console.warn('Nu s-au putut încărca emoticoanele de canal:', e);
+      }
+    }
+  } catch(e) {
+    // console.warn('Nu s-au putut încărca emoticoanele Kick:', e);
+  }
+}
+
+// Helper function for HTML escaping
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function parseEmotes(text) {
+  if (!text) return text;
+  
+  // First, handle Kick's [emote:ID:name] format
+  // Replace with a placeholder to avoid conflicts
+  const emotePlaceholders = [];
+  text = text.replace(/\[emote:(\d+):([^\]]+)\]/g, (match, emoteId, emoteName) => {
+    const placeholder = `__EMOTE_${emotePlaceholders.length}__`;
+    
+    // Try to find the emote in our map by name
+    let emoteHtml;
+    if (emotesMap[emoteName]) {
+      const emote = emotesMap[emoteName];
+      emoteHtml = `<img class="emote" src="${emote.url}" srcset="${emote.url2x} 2x, ${emote.url4x} 4x" alt="${esc(emoteName)}" title="${esc(emoteName)}">`;
+    } else {
+      // If not found in map, construct URL from Kick's emote ID
+      const url = `https://files.kick.com/emotes/${emoteId}/fullsize`;
+      emoteHtml = `<img class="emote" src="${url}" alt="${esc(emoteName)}" title="${esc(emoteName)}">`;
+    }
+    
+    emotePlaceholders.push(emoteHtml);
+    return placeholder;
+  });
+  
+  // Then handle regular space-separated emotes (7TV style)
+  const words = text.split(' ');
+  const processedWords = words.map(word => {
+    // Check if this is a placeholder
+    if (word.startsWith('__EMOTE_') && word.endsWith('__')) {
+      const index = parseInt(word.substring(8, word.length - 2));
+      return emotePlaceholders[index] || word;
+    }
+    
+    // Check if this word is an emote in our map
+    if (emotesMap[word]) {
+      const emote = emotesMap[word];
+      return `<img class="emote" src="${emote.url}" srcset="${emote.url2x} 2x, ${emote.url4x} 4x" alt="${esc(emote.name)}" title="${esc(emote.name)}">`;
+    }
+    
+    return esc(word);
+  });
+  
+  return processedWords.join(' ');
+}
+
+// ── DOM ────────────────────────────────────────────
+const boardEl   = document.getElementById('board');
+const emptyEl   = document.getElementById('empty');
+const connDot   = document.getElementById('conn-dot');
+const connTxt   = document.getElementById('conn-txt');
+const liveBadge = document.getElementById('live-badge');
+const btnGo     = document.getElementById('btn-go');
+const errEl     = document.getElementById('setup-err');
+
+// ══════════════════════════════════════════════════
+// THEME SYSTEM
+// ══════════════════════════════════════════════════
+const THEME_KEY = 'topChattersTheme';
+const defaultTheme = 'green';
+
+// Load saved theme or use default
+function loadTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || defaultTheme;
+  setTheme(saved, false);
+}
+
+function setTheme(themeName, save = true) {
+  document.body.setAttribute('data-theme', themeName);
+  
+  // Update active button
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    if (btn.getAttribute('data-theme') === themeName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // Update glow colors dynamically
+  const themeColors = {
+    green: 'rgba(83,252,24,',
+    pink: 'rgba(255,107,205,',
+    red: 'rgba(255,77,77,',
+    yellow: 'rgba(255,217,61,',
+    cyan: 'rgba(0,229,255,',
+    purple: 'rgba(199,125,255,',
+    dark: 'rgba(136,136,136,'
+  };
+  
+  const color = themeColors[themeName];
+  const gridColor = color + '.025)';
+  const glowColor = color + '.06)';
+  
+  // Update grid pattern
+  document.body.style.setProperty('--grid-color', gridColor);
+  
+  if (save) {
+    localStorage.setItem(THEME_KEY, themeName);
+  }
+}
+
+// Initialize theme on load
+loadTheme();
+
+// Add click handlers to theme buttons
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.getAttribute('data-theme');
+    setTheme(theme);
+  });
+});
+
+// ══════════════════════════════════════════════════
+// PERSISTENCE & SESSION MANAGEMENT
+// ══════════════════════════════════════════════════
+
+function getStorageKey(key) {
+  // Cache partajat între toți utilizatorii - folosim doar channelUser
+  return `topChatters_${channelUser}_${key}`;
+}
+
+async function saveState() {
+  if (!channelUser) return;
+  try {
+    const state = {
+      counts: counts,
+      messages: messages,
+      userMeta: userMeta,
+      totalMsgs: totalMsgs,
+      peakViewers: peakViewers,
+      emoteUsage: emoteUsage,
+      emotesMap: emotesMap,
+      timestamp: Date.now()
+    };
+    
+    // Salvează în localStorage local (backup)
+    localStorage.setItem(getStorageKey('state'), JSON.stringify(state));
+    
+    // Salvează în cache-ul global partajat (20 ore)
+    try {
+      await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      });
+    } catch(e) {
+      // Dacă API-ul nu e disponibil, continuă cu localStorage
+      console.warn('Cache API unavailable, using localStorage only');
+    }
+  } catch(e) {
+    // console.warn('Failed to save state:', e);
+  }
+}
+
+async function loadState() {
+  if (!channelUser) return false;
+  try {
+    let state = null;
+    
+    // Încearcă să încarce din cache-ul global partajat mai întâi
+    try {
+      const response = await fetch(`/api/cache?action=get&key=${encodeURIComponent(getStorageKey('state'))}`);
+      const cacheData = await response.json();
+      
+      if (cacheData.cached && cacheData.data) {
+        state = cacheData.data;
+        
+        // Afișează când expiră datele (în ore)
+        const hoursRemaining = Math.floor(cacheData.expiresIn / 3600);
+        const minutesRemaining = Math.floor((cacheData.expiresIn % 3600) / 60);
+        console.log(`📦 Date încărcate din cache partajat (expiră în ${hoursRemaining}h ${minutesRemaining}m)`);
+        
+        // Afișează mesaj în UI
+        const cacheInfo = document.getElementById('cache-info');
+        const cacheMsg = document.getElementById('cache-msg');
+        if (cacheInfo && cacheMsg) {
+          cacheMsg.textContent = `Date partajate - actualizate acum ${getTimeAgo(state.timestamp)} • expiră în ${hoursRemaining}h ${minutesRemaining}m`;
+          cacheInfo.style.display = 'block';
+          
+          // Ascunde mesajul după 8 secunde
+          setTimeout(() => {
+            cacheInfo.style.display = 'none';
+          }, 8000);
+        }
+      }
+    } catch(e) {
+      console.log('Cache API unavailable, trying localStorage...');
+    }
+    
+    // Fallback: încearcă localStorage dacă nu există în cache global
+    if (!state) {
+      const localState = localStorage.getItem(getStorageKey('state'));
+      if (localState) {
+        state = JSON.parse(localState);
+        console.log('📦 Date încărcate din localStorage (backup)');
+      }
+    }
+    
+    if (!state) return false;
+    
+    // Verifică dacă datele au mai puțin de 20 ore (72000000 ms)
+    if (state.timestamp && (Date.now() - state.timestamp) > 20 * 60 * 60 * 1000) {
+      clearState();
+      return false;
+    }
+    
+    // Restaurează starea
+    if (state.counts) {
+      Object.assign(counts, state.counts);
+      
+      // Deserializează mesajele și restaurează obiectele Date
+      if (state.messages) {
+        for (const [username, msgs] of Object.entries(state.messages)) {
+          messages[username] = msgs.map(msg => ({
+            text: msg.text,
+            time: new Date(msg.time)
+          }));
+        }
+      }
+      
+      if (state.userMeta) Object.assign(userMeta, state.userMeta);
+      totalMsgs = parseInt(state.totalMsgs || '0');
+      peakViewers = parseInt(state.peakViewers || '0');
+      
+      // Încarcă datele de emote
+      if (state.emoteUsage) Object.assign(emoteUsage, state.emoteUsage);
+      if (state.emotesMap) Object.assign(emotesMap, state.emotesMap);
+      
+      document.getElementById('s-total').textContent = totalMsgs.toLocaleString();
+      document.getElementById('s-users').textContent = Object.keys(counts).length;
+      document.getElementById('s-peak').textContent = peakViewers.toLocaleString();
+      
+      renderBoard();
+      updateTopEmotes();
+      return true;
+    }
+  } catch(e) {
+    console.warn('Failed to load state:', e);
+  }
+  return false;
+}
+
+async function clearState() {
+  if (!channelUser) return;
+  try {
+    // Șterge din localStorage
+    localStorage.removeItem(getStorageKey('state'));
+    
+    // Șterge din cache-ul global (nu există DELETE endpoint, dar putem seta timestamp expirat)
+    // Pentru simplitate, lăsăm cache-ul să expire natural
+    
+    console.log('✓ Stare resetată');
+  } catch(e) {
+    // console.warn('Failed to clear state:', e);
+  }
+}
+
+function updateURL() {
+  const newUrl = `${window.location.pathname}?user=${channelUser}`;
+  window.history.replaceState({}, '', newUrl);
+}
+
+// Auto-save every 10 seconds
+setInterval(saveState, 10000);
+
+// Save on page unload
+window.addEventListener('beforeunload', saveState);
+
+// Check URL parameters on load
+const urlParams = new URLSearchParams(window.location.search);
+const urlUser = urlParams.get('user');
+
+// Hide setup immediately if we have user param (prevent flicker)
+if (urlUser) {
+  const setupEl = document.getElementById('setup');
+  setupEl.style.display = 'none';
+  document.getElementById('inp-user').value = urlUser;
+  
+  // Auto-start after DOM is fully loaded
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      btnGo.click();
+    }, 100);
+  });
+}
+
+
+// ── Setup ──────────────────────────────────────────
+const inpUser = document.getElementById('inp-user');
+
+if (inpUser && btnGo) {
+  inpUser.addEventListener('keydown', e => {
+    if (e.key==='Enter') btnGo.click();
+  });
+
+  btnGo.addEventListener('click', async () => {
+    const user = inpUser.value.trim().toLowerCase();
+  
+  if (!user) { 
+    showErr('Introdu un username valid.'); 
+    return; 
+  }
+  
+  channelUser=user;
+  
+  errEl.textContent='';
+  btnGo.disabled=true;
+  btnGo.innerHTML='<span class="spinner"></span> Se încarcă...';
+
+  try {
+    const data = await getChannelInfo(user);
+    chatroomId=data.chatroomId; isLive=data.isLive;
+    channelKickUserId = data.kickUserId || null;
+
+    document.getElementById('ch-name').textContent='@'+user;
+    if (data.avatar){
+      const img=document.getElementById('ch-avatar');
+      img.src=data.avatar; img.style.display='block';
+    }
+    
+    // Smooth animated transition from setup to app
+    const setupEl = document.getElementById('setup');
+    const wrapEl = document.querySelector('.wrap');
+    
+    setupEl.classList.add('hiding');
+    setTimeout(() => {
+      setupEl.classList.add('hidden');
+      setupEl.classList.remove('hiding');
+      document.getElementById('reset-wrap').style.display='flex';
+      document.getElementById('dice-btn-wrap').style.display='flex';
+      document.getElementById('podium-section').style.display='flex';
+      document.getElementById('activity-panels').style.display='flex';
+      
+      // Initialize session start time
+      sessionStartTime = Date.now();
+      
+      // Trigger fade-in animation for main app
+      setTimeout(() => wrapEl.classList.add('show'), 50);
+    }, 400);
+    
+    document.title='Top Chatters — '+user;
+
+    // Update URL with channel
+    updateURL();
+    
+    // Try to load saved state (async)
+    const loaded = await loadState();
+    if (loaded) {
+      console.log('✓ Stare încărcată din cache partajat');
+    }
+
+    // Load emotes (7TV + Kick global + Kick channel-specific)
+    if (channelKickUserId) load7TVEmotes(channelKickUserId);
+    loadKickEmotes(user);
+
+    updateLiveUI(data);
+    startPusher();
+
+    setInterval(async () => {
+      try {
+        const d=await getChannelInfo(user);
+        isLive=d.isLive;
+        updateLiveUI(d);
+      } catch(_){}
+    }, 60000);
+
+    setInterval(updateMpm, 10000);
+
+  } catch(e) {
+    btnGo.disabled=false;
+    btnGo.innerHTML='START ⚡';
+    showErr(e.message);
+  }
+  });
+}
+
+async function getChannelInfo(user) {
+  const res=await fetch('/api/channel?user='+encodeURIComponent(user));
+  const json=await res.json();
+  if (!res.ok||json.error) throw new Error(json.error||'Canal negăsit.');
+  return json;
+}
+
+function updateLiveUI(data) {
+  const offlineBadge = document.getElementById('offline-badge');
+  
+  liveBadge.style.display=data.isLive?'flex':'none';
+  offlineBadge.style.display=data.isLive?'none':'flex';
+  
+  const lt=document.getElementById('live-title');
+  if (data.isLive&&data.title){ lt.textContent='📺 '+data.title; lt.style.display='block'; }
+  else lt.style.display='none';
+  
+  const currentViewers = data.viewers||0;
+  document.getElementById('s-viewers').textContent=data.isLive?currentViewers.toLocaleString():'—';
+  
+  // Update peak viewers
+  if (data.isLive && currentViewers > peakViewers) {
+    peakViewers = currentViewers;
+    document.getElementById('s-peak').textContent=peakViewers.toLocaleString();
+    saveState();
+  }
+  
+  renderBoard();
+}
+
+// ── Pusher ─────────────────────────────────────────
+function startPusher() {
+  Pusher.logToConsole=false;
+  pusher=new Pusher('32cbd69e4b950bf97679',{cluster:'us2',forceTLS:true});
+
+  pusher.connection.bind('connected',   ()=>setConn('live','conectat'));
+  pusher.connection.bind('disconnected',()=>setConn('error','deconectat'));
+  pusher.connection.bind('error',       ()=>setConn('error','eroare conexiune'));
+  pusher.connection.bind('connecting',  ()=>setConn('waiting','conectare...'));
+
+  const chV2=pusher.subscribe('chatrooms.'+chatroomId+'.v2');
+  const chV1=pusher.subscribe('chatrooms.'+chatroomId);
+
+  function processMsg(data) {
+    // Don't process messages when offline
+    if (!isLive) return;
+    
+    if (typeof data==='string') { try{ data=JSON.parse(data); }catch(e){ return; } }
+    const sender=data?.sender||data?.user||data?.chatter||{};
+    const username=sender?.username||data?.username||null;
+    const content =data?.content||data?.message||data?.text||'';
+    if (!username) return;
+    
+    // BLACKLIST: Ignore bot accounts
+    const blacklist = ['kickbot', 'botrix'];
+    if (blacklist.includes(username.toLowerCase())) {
+      return; // Skip processing for blacklisted users
+    }
+    
+    
+    // Extract Kick user ID from message (needed for 7TV API)
+    const senderKickId = sender?.id || sender?.user_id || data?.user_id || null;
+    
+    // Store user metadata (moderator status, avatar, and 7TV paint)
+    if (!userMeta[username]) {
+      userMeta[username] = {
+        isMod: false,
+        avatar: null,
+        avatarFetched: false,    // Track if we've attempted to fetch avatar from API
+        kickUserId: senderKickId, // Kick numeric user ID (consistent naming)
+        paint7TV: null,          // 7TV gradient/color CSS value
+        paintColor: null,        // 7TV solid fallback color (hex)
+        paintIsImage: false,     // true if paint is a GIF/image
+        paintImageUrl: null,     // URL for image-type paints
+        badge7TV: null,          // 7TV badge
+        kickEmotes: []           // Kick emotes used
+      };
+      
+      // Load 7TV style (paint + badge) — only if we have a Kick user ID
+      if (senderKickId) {
+        const capturedUsername = username;
+        const capturedKickId = senderKickId;
+        
+        // Load 7TV style
+        load7TVUserStyle(capturedKickId).then(style => {
+          // CRITICAL: Only apply if username still exists AND belongs to same Kick ID
+          if (style && userMeta[capturedUsername]) {
+            if (userMeta[capturedUsername].kickUserId === capturedKickId) {
+              // Correct user - apply style
+              if (style.paint)        userMeta[capturedUsername].paint7TV      = style.paint;
+              if (style.paintColor)   userMeta[capturedUsername].paintColor    = style.paintColor;
+              if (style.paintIsImage) userMeta[capturedUsername].paintIsImage  = style.paintIsImage;
+              if (style.paintImageUrl)userMeta[capturedUsername].paintImageUrl = style.paintImageUrl;
+              if (style.badge)        userMeta[capturedUsername].badge7TV      = style.badge;
+              
+              renderBoard();
+            } else {
+              // RACE CONDITION DETECTED: The username now belongs to a different user!
+              // console.warn(`[7TV] ⚠ Race condition prevented! Style for Kick ID ${capturedKickId} NOT applied to ${capturedUsername} (now has ID ${userMeta[capturedUsername].kickUserId})`);
+            }
+          } else if (!style) {
+            // console.log(`[7TV] ℹ No 7TV data for ${capturedUsername} (ID: ${capturedKickId})`);
+          }
+        }).catch(err => {
+          // console.error(`[7TV] ✗ Error loading style for ${capturedUsername}:`, err);
+        });
+      }
+    }
+    
+    // Check if user is moderator (check ALL possible API fields)
+    const isMod = !!(
+      sender?.is_moderator || 
+      sender?.is_staff || 
+      sender?.is_owner ||
+      sender?.moderator ||
+      sender?.staff ||
+      sender?.badge?.type === 'moderator' ||
+      sender?.badge?.type === 'broadcaster' ||
+      sender?.badges?.some(b => b.type === 'moderator' || b.type === 'broadcaster') ||
+      data?.is_moderator ||
+      data?.moderator ||
+      false
+    );
+    
+    if (isMod && !userMeta[username].isMod) {
+      userMeta[username].isMod = true;
+      // console.log('🛡️ Moderator detectat:', username);
+      renderBoard(); // Re-render to show mod badge
+    }
+    
+    // Get profile picture directly from Pusher message (try ALL possible fields)
+    const avatar = sender?.identity?.profile_pic ||
+                   sender?.identity?.avatar || 
+                   sender?.profile_pic || 
+                   sender?.avatar ||
+                   sender?.user?.profile_pic ||
+                   sender?.user?.avatar ||
+                   data?.sender?.identity?.profile_pic ||
+                   data?.sender?.identity?.avatar ||
+                   data?.sender?.profile_pic ||
+                   data?.sender?.avatar ||
+                   data?.sender_avatar ||
+                   data?.avatar ||
+                   data?.profile_pic ||
+                   null;
+    
+    // Always update avatar if we find one (might be better quality)
+    if (avatar && !userMeta[username].avatar) {
+      // console.log('✓ Avatar găsit pentru', username, ':', avatar);
+      userMeta[username].avatar = avatar;
+      renderBoard(); // Re-render to show avatar
+    } else if (avatar && userMeta[username].avatar) {
+      // Update if we got a better quality one
+      userMeta[username].avatar = avatar;
+    }
+    // Note: We'll fetch avatars lazily when rendering top users instead of here
+    
+    counts[username]=(counts[username]||0)+1;
+    if (!messages[username]) messages[username]=[];
+    messages[username].push({ text: content, time: new Date() });
+    if (messages[username].length > MAX_MSGS_PER_USER)
+      messages[username].shift();
+    totalMsgs++;
+    mpmBuf.push(Date.now());
+    document.getElementById('s-total').textContent=totalMsgs.toLocaleString();
+    document.getElementById('s-users').textContent=Object.keys(counts).length;
+    
+    // Track emote usage from [emote:ID:NAME] format
+    const emoteMatches = content.match(/\[emote:(\d+):([^\]]+)\]/g);
+    if (emoteMatches) {
+      emoteMatches.forEach(match => {
+        const parts = match.match(/\[emote:(\d+):([^\]]+)\]/);
+        if (parts) {
+          const emoteId = parts[1];
+          const emoteName = parts[2];
+          
+          // Add to emotesMap if not present (for Kick emotes)
+          if (!emotesMap[emoteName]) {
+            emotesMap[emoteName] = {
+              id: emoteId,
+              name: emoteName,
+              url: `https://files.kick.com/emotes/${emoteId}/fullsize`,
+              url2x: `https://files.kick.com/emotes/${emoteId}/fullsize`,
+              url4x: `https://files.kick.com/emotes/${emoteId}/fullsize`,
+              isKick: true
+            };
+          }
+          
+          // Track usage
+          emoteUsage[emoteName] = (emoteUsage[emoteName] || 0) + 1;
+        }
+      });
+    }
+    
+    // Also check for plain emote names (7TV style - space-separated)
+    const words = content.split(/\s+/);
+    words.forEach(word => {
+      // Skip [emote:...] patterns and empty words
+      if (!word.startsWith('[emote:') && word.length > 0 && emotesMap[word]) {
+        emoteUsage[word] = (emoteUsage[word] || 0) + 1;
+      }
+    });
+    
+    renderBoard();
+  }
+
+  chV2.bind_global(function(ev,data){ if(!ev.startsWith('pusher')) processMsg(data); });
+  chV1.bind_global(function(ev,data){ if(!ev.startsWith('pusher')) processMsg(data); });
+}
+
+// ── MPM ────────────────────────────────────────────
+function updateMpm() {
+  const now=Date.now();
+  mpmBuf=mpmBuf.filter(t=>t>now-60000);
+  document.getElementById('s-mpm').textContent=mpmBuf.length;
+  
+  // Update max messages per second
+  const lastSecond = mpmBuf.filter(t => t > now - 1000).length;
+  if (lastSecond > maxMsgPerSecond) {
+    maxMsgPerSecond = lastSecond;
+  }
+}
+
+// ── Activity Panels ────────────────────────────────
+let lastEmotesSorted = [];
+
+function updateTopEmotes() {
+  const listEl = document.getElementById('top-emotes-list');
+  if (!listEl) return;
+  
+  // Get top 5 emotes
+  const sorted = Object.entries(emoteUsage)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  if (sorted.length === 0) {
+    if (listEl.children.length === 0 || !listEl.querySelector('.empty-state')) {
+      listEl.innerHTML = '<div class="empty-state" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Niciun emote folosit încă</div>';
+    }
+    return;
+  }
+  
+  // Check if order changed
+  const sortedString = sorted.map(([name]) => name).join(',');
+  const lastString = lastEmotesSorted.map(([name]) => name).join(',');
+  
+  if (sortedString !== lastString) {
+    // Order changed, recreate list
+    lastEmotesSorted = sorted;
+    listEl.innerHTML = '';
+    
+    sorted.forEach(([emoteName, count], i) => {
+      const emoteData = emotesMap[emoteName];
+      if (!emoteData) return;
+      
+      const itemEl = document.createElement('div');
+      itemEl.className = 'emote-item';
+      itemEl.dataset.emote = emoteName;
+      
+      const rankEl = document.createElement('div');
+      rankEl.className = 'emote-rank';
+      rankEl.textContent = i + 1;
+      
+      const imgEl = document.createElement('img');
+      imgEl.className = 'emote-img';
+      imgEl.src = emoteData.url2x || emoteData.url;
+      imgEl.alt = emoteName;
+      
+      const infoEl = document.createElement('div');
+      infoEl.className = 'emote-info';
+      
+      const nameEl = document.createElement('div');
+      nameEl.className = 'emote-name';
+      nameEl.textContent = emoteName;
+      
+      const countEl = document.createElement('div');
+      countEl.className = 'emote-count';
+      countEl.textContent = count.toLocaleString();
+      
+      infoEl.appendChild(nameEl);
+      itemEl.appendChild(rankEl);
+      itemEl.appendChild(imgEl);
+      itemEl.appendChild(infoEl);
+      itemEl.appendChild(countEl);
+      listEl.appendChild(itemEl);
+    });
+  } else {
+    // Same order, just update counts
+    sorted.forEach(([emoteName, count], i) => {
+      const itemEl = listEl.querySelector(`[data-emote="${emoteName}"]`);
+      if (itemEl) {
+        const countEl = itemEl.querySelector('.emote-count');
+        if (countEl) {
+          countEl.textContent = count.toLocaleString();
+        }
+      }
+    });
+  }
+}
+
+// Update emotes every 3 seconds
+setInterval(() => {
+  updateTopEmotes();
+}, 3000);
+
+// ── Render ─────────────────────────────────────────
+function updatePodium(sorted) {
+  const podiumWrap = document.getElementById('podium-wrap');
+  
+  // Arată podiumul dacă avem cel puțin 1 chatter
+  if (sorted.length >= 1) {
+    podiumWrap.style.display = 'block';
+    document.getElementById('podium-section').style.display = 'flex';
+    
+    // Lazy load avatars for top 3 podium users
+    sorted.slice(0, 3).forEach(([username]) => {
+      const meta = userMeta[username];
+      if (meta && !meta.avatar && !meta.avatarFetched) {
+        meta.avatarFetched = true;
+        // console.log(`[AVATAR FETCH] Încercare fetch pentru podium ${username}...`);
+        loadKickUserAvatar(username).then(fetchedAvatar => {
+          if (fetchedAvatar && userMeta[username]) {
+            // console.log(`[AVATAR FETCH] ✓ Success pentru podium ${username}:`, fetchedAvatar);
+            userMeta[username].avatar = fetchedAvatar;
+            updateUserAvatar(username); // Update only this user's avatar
+          } else {
+            // console.log(`[AVATAR FETCH] ✗ Nu s-a găsit avatar pentru podium ${username}`);
+          }
+        }).catch(err => {
+          // console.error(`[AVATAR FETCH] ✗ Eroare pentru podium ${username}:`, err);
+        });
+      }
+    });
+    
+    // Update pentru fiecare loc 1-3
+    for (let i = 0; i < 3; i++) {
+      const place = i + 1;
+      const entry = sorted[i];
+      
+      if (entry) {
+        const [username, count] = entry;
+        const meta = userMeta[username] || {};
+        
+        // Avatar
+        const avatarEl = document.getElementById(`pod-avatar-${place}`);
+        avatarEl.innerHTML = ''; // Clear content
+        
+        if (meta.avatar) {
+          // Create img tag for profile picture
+          const img = document.createElement('img');
+          img.src = meta.avatar;
+          img.alt = username;
+          img.onerror = function() {
+            // If image fails to load, show initial
+            this.style.display = 'none';
+            avatarEl.style.backgroundColor = hashColor(username);
+            avatarEl.textContent = username.charAt(0).toUpperCase();
+          };
+          avatarEl.appendChild(img);
+          avatarEl.style.backgroundColor = 'transparent';
+        } else {
+          // Show initial letter
+          avatarEl.style.backgroundColor = hashColor(username);
+          avatarEl.textContent = username.charAt(0).toUpperCase();
+        }
+        
+        // Name (clickable) - Apply 7TV paint if available
+        const nameEl = document.getElementById(`pod-name-${place}`);
+        
+        // Build name with badges
+        let nameHTML = username;
+        
+        // Add 7TV badge if user has one
+        if (meta.badge7TV) {
+          nameHTML += ` <img class="badge-7tv-podium" src="${meta.badge7TV.url2x}" alt="${meta.badge7TV.name}" title="7TV: ${meta.badge7TV.name}" onerror="this.src='${meta.badge7TV.url}';this.onerror=null">`;
+        }
+        // Note: We only show badge if user has actual badge image, not just paint
+        
+        nameEl.innerHTML = nameHTML;
+        nameEl.style.cursor = 'pointer';
+        nameEl.style.transition = 'all .2s';
+        
+        // Apply 7TV paint to name
+        if (meta.paintIsImage && meta.paintImageUrl) {
+          nameEl.style.background = `url('${meta.paintImageUrl}') center/cover`;
+          nameEl.style.webkitBackgroundClip = 'text';
+          nameEl.style.webkitTextFillColor = 'transparent';
+          nameEl.style.backgroundClip = 'text';
+        } else if (meta.paint7TV && (meta.paint7TV.startsWith('linear-gradient') || meta.paint7TV.startsWith('radial-gradient'))) {
+          nameEl.style.background = meta.paint7TV;
+          nameEl.style.webkitBackgroundClip = 'text';
+          nameEl.style.webkitTextFillColor = 'transparent';
+          nameEl.style.backgroundClip = 'text';
+          const solidColor = meta.paintColor || meta.paint7TV.match(/rgba?\([\d,\s]+\)/)?.[0] || '#fff';
+          nameEl.style.filter = `drop-shadow(0 0 6px ${solidColor}66)`;
+        } else if (meta.paint7TV) {
+          nameEl.style.color = meta.paint7TV;
+          nameEl.style.textShadow = `0 0 12px ${meta.paint7TV}88`;
+          nameEl.style.background = '';
+          nameEl.style.webkitBackgroundClip = '';
+          nameEl.style.webkitTextFillColor = '';
+        } else {
+          // Use hashColor as fallback for users without 7TV paint
+          const userColor = hashColor(username);
+          nameEl.style.color = userColor;
+          nameEl.style.textShadow = `0 0 8px ${userColor}88`;
+          nameEl.style.background = '';
+          nameEl.style.webkitBackgroundClip = '';
+          nameEl.style.webkitTextFillColor = '';
+          nameEl.style.filter = '';
+        }
+        
+        nameEl.onclick = () => openUserModal(username);
+        nameEl.onmouseenter = function() {
+          this.style.opacity = '0.7';
+          this.style.transform = 'scale(1.05)';
+        };
+        nameEl.onmouseleave = function() {
+          this.style.opacity = '1';
+          this.style.transform = 'scale(1)';
+        };
+        
+        // Count
+        const countEl = document.getElementById(`pod-count-${place}`);
+        countEl.textContent = `${count.toLocaleString()} msg`;
+      } else {
+        // Dacă nu există user pe poziția asta, ascunde-l
+        const avatarEl = document.getElementById(`pod-avatar-${place}`);
+        avatarEl.innerHTML = '';
+        avatarEl.textContent = '—';
+        avatarEl.style.backgroundColor = 'rgba(255,255,255,.05)';
+        
+        document.getElementById(`pod-name-${place}`).textContent = '—';
+        document.getElementById(`pod-count-${place}`).textContent = '0 msg';
+      }
+    }
+  } else {
+    podiumWrap.style.display = 'none';
+  }
+}
+
+function renderBoard() {
+  if (renderTid) clearTimeout(renderTid);
+  renderTid=setTimeout(_render,120);
+}
+
+function _render() {
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,TOP);
+  if (!sorted.length) return;
+  emptyEl.style.display='none';
+  
+  // Update podium pentru top 3
+  updatePodium(sorted);
+  
+  // Lazy load avatars for ALL top users (only if they don't have one)
+  sorted.forEach(([username], i) => {
+    const meta = userMeta[username];
+    if (meta && !meta.avatar && !meta.avatarFetched) {
+      meta.avatarFetched = true; // Mark as attempted
+      // console.log(`[AVATAR FETCH] Încercare fetch pentru #${i+1} ${username}...`);
+      loadKickUserAvatar(username).then(fetchedAvatar => {
+        if (fetchedAvatar && userMeta[username]) {
+          // console.log(`[AVATAR FETCH] ✓ Success pentru #${i+1} ${username}:`, fetchedAvatar);
+          userMeta[username].avatar = fetchedAvatar;
+          // Don't call renderBoard() here to avoid infinite loop
+          // Instead just update the specific avatar elements
+          updateUserAvatar(username);
+        } else {
+          // console.log(`[AVATAR FETCH] ✗ Nu s-a găsit avatar pentru ${username}`);
+        }
+      }).catch(err => {
+        // console.error(`[AVATAR FETCH] ✗ Eroare pentru ${username}:`, err);
+      });
+    }
+  });
+  
+  const maxCount=sorted[0][1];
+  boardEl.innerHTML='';
+
+  sorted.forEach(([username,count],i)=>{
+    const rank=i+1;
+    
+    // Skip top 3 - ei sunt deja în podium
+    if (rank <= 3) return;
+    
+    if(rank===4)  appendDivider('── Top 10 ──');
+    if(rank===11) appendDivider('── Top 50 ──');
+    let rc='rn';
+    if(rank===1) rc='r1'; else if(rank===2) rc='r2'; else if(rank===3) rc='r3';
+    const icon=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+    const pct=maxCount>0?(count/maxCount*100).toFixed(1):0;
+    const bclr=rank===1?'var(--gold)':rank===2?'var(--silver)':rank===3?'var(--bronze)':'var(--g)';
+    
+    // Get user metadata
+    const meta = userMeta[username] || { 
+      isMod: false, 
+      avatar: null, 
+      paint7TV: null, 
+      paintColor: null, 
+      paintIsImage: false, 
+      paintImageUrl: null,
+      badge7TV: null
+    };
+    
+    // Solid color for avatar bg (use paintColor if available, never use gradient/url as bg)
+    const solidColor = meta.paintColor || (!meta.paintIsImage && meta.paint7TV && !meta.paint7TV.includes('gradient') ? meta.paint7TV : null) || hashColor(username);
+    const init = username.charAt(0).toUpperCase();
+    const crown = rank===1 ? '<span class="crown'+(isLive?'':' off')+'" title="'+(isLive?'🔴 Live Top!':'Top chatter')+'">👑</span>' : '';
+    
+    const modBadge = meta.isMod ? '<span class="mod-badge">🛡️ MOD</span>' : '';
+    
+    // 7TV Badge
+    let badge7TV = '';
+    if (meta.badge7TV) {
+      badge7TV = `<img class="badge-7tv-img" src="${meta.badge7TV.url2x}" alt="${meta.badge7TV.name}" title="7TV: ${meta.badge7TV.name}" onerror="this.src='${meta.badge7TV.url}';this.onerror=null" style="height:18px;width:auto;vertical-align:middle;margin:0 4px 0 2px;flex-shrink:0">`;
+    }
+    // Note: We only show badge if user has actual badge image, not just paint
+    
+    // Apply paint to username
+    let usernameStyle;
+    if (meta.paintIsImage && meta.paintImageUrl) {
+      usernameStyle = ` style="background:url('${meta.paintImageUrl}') center/cover;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text"`;
+    } else if (meta.paint7TV && (meta.paint7TV.startsWith('linear-gradient') || meta.paint7TV.startsWith('radial-gradient'))) {
+      usernameStyle = ` style="background:${meta.paint7TV};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 6px ${solidColor}66)"`;
+    } else if (meta.paint7TV) {
+      usernameStyle = ` style="color:${meta.paint7TV};text-shadow:0 0 8px ${meta.paint7TV}88"`;
+    } else {
+      // Use hashColor as fallback for users without 7TV paint
+      const userColor = hashColor(username);
+      usernameStyle = ` style="color:${userColor};text-shadow:0 0 8px ${userColor}88"`;
+    }
+    
+    
+    // Avatar HTML - use profile pic if available, otherwise colored circle with initial
+    let avatarHtml;
+    if (meta.avatar) {
+      const modClass = meta.isMod ? ' mod-user' : '';
+      avatarHtml = '<img class="avatar has-img'+modClass+'" src="'+esc(meta.avatar)+'" alt="'+esc(username)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                   '<div class="avatar'+modClass+'" style="background:'+solidColor+';display:none">'+init+'</div>';
+    } else {
+      const modClass = meta.isMod ? ' mod-user' : '';
+      avatarHtml = '<div class="avatar'+modClass+'" style="background:'+solidColor+'">'+init+'</div>';
+    }
+
+    const row=document.createElement('div');
+    row.className='row '+rc;
+    row.style.cursor='pointer';
+    row.title='Click pentru mesaje';
+    row.innerHTML=
+      '<div class="rank">'+icon+'</div>'+
+      avatarHtml+
+      '<div class="info">'+
+        '<span class="uname"'+usernameStyle+' title="'+esc(username)+'">'+esc(username)+modBadge+badge7TV+'</span>'+
+        '<div class="bar-wrap"><div class="bar" style="width:'+pct+'%;background:'+bclr+'"></div></div>'+
+      '</div>'+crown+
+      '<div class="count"><span class="num">'+count.toLocaleString()+'</span><span class="lbl">mesaje</span></div>';
+    row.addEventListener('click', ()=>openUserModal(username));
+    boardEl.appendChild(row);
+  });
+}
+
+function appendDivider(txt) {
+  const d=document.createElement('div');
+  d.className='divider'; d.textContent=txt;
+  boardEl.appendChild(d);
+}
+
+// Update avatar for a specific user without full re-render
+function updateUserAvatar(username) {
+  const meta = userMeta[username];
+  if (!meta || !meta.avatar) return;
+  
+  // Update in podium if user is in top 3
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const rank = sorted.findIndex(([u]) => u === username) + 1;
+  
+  if (rank >= 1 && rank <= 3) {
+    const avatarEl = document.getElementById(`pod-avatar-${rank}`);
+    if (avatarEl) {
+      avatarEl.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = meta.avatar;
+      img.alt = username;
+      img.onerror = function() {
+        this.style.display = 'none';
+        avatarEl.style.backgroundColor = hashColor(username);
+        avatarEl.textContent = username.charAt(0).toUpperCase();
+      };
+      avatarEl.appendChild(img);
+      avatarEl.style.backgroundColor = 'transparent';
+    }
+  }
+  
+  // Update in board list
+  const rows = boardEl.querySelectorAll('.row');
+  rows.forEach(row => {
+    const nameEl = row.querySelector('.uname');
+    if (nameEl && nameEl.title === username) {
+      const avatarContainer = row.querySelector('.avatar');
+      if (avatarContainer) {
+        const solidColor = meta.paintColor || (!meta.paintIsImage && meta.paint7TV && !meta.paint7TV.includes('gradient') ? meta.paint7TV : null) || hashColor(username);
+        const init = username.charAt(0).toUpperCase();
+        const modClass = meta.isMod ? ' mod-user' : '';
+        
+        // Replace with image avatar
+        const newAvatar = document.createElement('img');
+        newAvatar.className = 'avatar has-img' + modClass;
+        newAvatar.src = meta.avatar;
+        newAvatar.alt = username;
+        newAvatar.onerror = function() {
+          this.style.display = 'none';
+          const fallback = document.createElement('div');
+          fallback.className = 'avatar' + modClass;
+          fallback.style.background = solidColor;
+          fallback.textContent = init;
+          this.parentNode.insertBefore(fallback, this.nextSibling);
+        };
+        
+        avatarContainer.replaceWith(newAvatar);
+      }
+    }
+  });
+}
+
+// ── Helpers ────────────────────────────────────────
+function setConn(state,txt){ connDot.className=state; connTxt.textContent=txt; }
+function showErr(msg){ errEl.textContent='⚠ '+msg; errEl.style.display='block'; }
+const PALETTE=['#53fc18','#00e5ff','#ff6b6b','#ffd166','#c77dff','#ff9f1c','#7fffd4','#ff85a1','#78c6ff','#e9ff70','#ffb347','#b8f2e6'];
+function hashColor(str){ let h=0; for(const c of str) h=(h*31+c.charCodeAt(0))&0xffff; return PALETTE[h%PALETTE.length]; }
+
+function getTimeAgo(timestamp) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+// ══════════════════════════════════════════════════
+// PASSWORD PROTECTED RESET
+// ══════════════════════════════════════════════════
+const passwordModal = document.getElementById('password-modal');
+const passwordInput = document.getElementById('password-input');
+const passwordError = document.getElementById('password-error');
+const passwordConfirm = document.getElementById('password-confirm');
+const passwordCancel = document.getElementById('password-cancel');
+
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  passwordModal.classList.add('open');
+  passwordInput.value = '';
+  passwordError.textContent = '';
+  setTimeout(() => passwordInput.focus(), 100);
+});
+
+passwordCancel.addEventListener('click', closePasswordModal);
+passwordModal.addEventListener('click', (e) => {
+  if (e.target === passwordModal) closePasswordModal();
+});
+
+function closePasswordModal() {
+  passwordModal.classList.remove('open');
+  passwordInput.value = '';
+  passwordError.textContent = '';
+}
+
+passwordInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') passwordConfirm.click();
+  if (e.key === 'Escape') closePasswordModal();
+});
+
+passwordConfirm.addEventListener('click', async () => {
+  const enteredPassword = passwordInput.value.trim();
+  
+  if (!enteredPassword) {
+    passwordError.textContent = '⚠ Introdu o parolă';
+    return;
+  }
+  
+  // Hash the entered password and compare
+  const enteredHash = await hashPassword(enteredPassword);
+  
+  if (enteredHash !== RESET_PASS_HASH) {
+    passwordError.textContent = '❌ Parolă incorectă! Verifică pe Instagram.';
+    passwordInput.value = '';
+    passwordInput.focus();
+    return;
+  }
+  
+  // Password correct - reset stats
+  if (!confirm('Ești sigur că vrei să resetezi toate statisticile?')) {
+    closePasswordModal();
+    return;
+  }
+  
+  for(const k in counts) delete counts[k];
+  for(const k in userMeta) delete userMeta[k];
+  for(const k in messages) delete messages[k];
+  totalMsgs=0; mpmBuf=[]; peakViewers=0;
+  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('s-peak').textContent='—';
+  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
+  
+  // Clear saved state
+  clearState();
+  
+  closePasswordModal();
+  
+  // Success feedback
+  const successMsg = document.createElement('div');
+  successMsg.style.cssText = `
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);
+    background:var(--g);color:#000;padding:12px 24px;
+    border-radius:8px;font-weight:600;z-index:400;
+    box-shadow:0 4px 20px rgba(83,252,24,.4);
+    animation:slideDown .3s ease;
+  `;
+  successMsg.textContent = '✓ Statistici resetate cu succes!';
+  document.body.appendChild(successMsg);
+  setTimeout(() => {
+    successMsg.style.animation = 'slideUp .3s ease';
+    setTimeout(() => successMsg.remove(), 300);
+  }, 2000);
+});
+
+// ══════════════════════════════════════════════════
+// USER MESSAGES MODAL
+// ══════════════════════════════════════════════════
+const userModal = document.getElementById('user-modal');
+
+function openUserModal(username) {
+  const msgs     = messages[username] || [];
+  const count    = counts[username]   || 0;
+  const initial  = username.charAt(0).toUpperCase();
+  const meta     = userMeta[username] || { 
+    isMod: false, 
+    avatar: null, 
+    paint7TV: null, 
+    paintColor: null, 
+    paintIsImage: false, 
+    paintImageUrl: null,
+    badge7TV: null
+  };
+  
+  // Solid color for avatar bg
+  const color = meta.paintColor || (!meta.paintIsImage && meta.paint7TV && !meta.paint7TV.includes('gradient') ? meta.paint7TV : null) || hashColor(username);
+
+  // Header
+  const avatarEl = document.getElementById('user-header-avatar');
+  
+  // Display profile picture if available
+  if (meta.avatar) {
+    avatarEl.innerHTML = '<img src="'+esc(meta.avatar)+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display=\'none\';this.parentElement.textContent=\''+initial+'\';this.parentElement.style.background=\''+color+'\'">';
+    avatarEl.style.background = 'transparent';
+  } else {
+    avatarEl.style.background = color;
+    avatarEl.textContent = initial;
+    avatarEl.style.color = '#000';
+  }
+
+  const nameEl = document.getElementById('user-header-name');
+  
+  // Build badges HTML first
+  let badgesHtml = '';
+  
+  // Add moderator badge if applicable
+  if (meta.isMod) {
+    badgesHtml += ' <span class="mod-badge" style="margin-left:6px">🛡️ MOD</span>';
+  }
+  
+  // Add 7TV badge if available
+  if (meta.badge7TV) {
+    badgesHtml += ` <img class="badge-7tv-img" src="${meta.badge7TV.url2x}" alt="${meta.badge7TV.name}" title="7TV: ${meta.badge7TV.name}" onerror="this.src='${meta.badge7TV.url}';this.onerror=null" style="height:18px;width:auto;vertical-align:middle;margin-left:6px">`;
+  }
+  
+  // Set HTML with username and badges
+  nameEl.innerHTML = esc(username) + badgesHtml;
+  
+  // Apply paint to name AFTER setting innerHTML
+  if (meta.paintIsImage && meta.paintImageUrl) {
+    nameEl.style.cssText = `background:url('${meta.paintImageUrl}') center/cover;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`;
+  } else if (meta.paint7TV && (meta.paint7TV.startsWith('linear-gradient') || meta.paint7TV.startsWith('radial-gradient'))) {
+    nameEl.style.cssText = `background:${meta.paint7TV};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`;
+  } else if (meta.paint7TV) {
+    nameEl.style.cssText = `color:${meta.paint7TV};text-shadow:0 0 8px ${meta.paint7TV}88`;
+  } else {
+    nameEl.style.cssText = `color:${color}`;
+  }
+
+  document.getElementById('user-header-stats').textContent =
+    count.toLocaleString() + ' mesaje totale' +
+    (msgs.length < count ? ' · ultimele ' + msgs.length + ' afișate' : '');
+
+  // Messages list
+  const list = document.getElementById('user-msgs-list');
+  list.innerHTML = '';
+
+  if (!msgs.length) {
+    list.innerHTML = '<div id="user-empty-msgs">Niciun mesaj salvat în sesiunea curentă.</div>';
+  } else {
+    // Afișăm de la cel mai recent
+    const reversed = [...msgs].reverse();
+    reversed.forEach(({text, time}) => {
+      const item = document.createElement('div');
+      item.className = 'umsg';
+      const hh = String(time.getHours()).padStart(2,'0');
+      const mm = String(time.getMinutes()).padStart(2,'0');
+      const ss = String(time.getSeconds()).padStart(2,'0');
+      item.innerHTML =
+        '<span class="umsg-time">' + hh + ':' + mm + ':' + ss + '</span>' +
+        '<span class="umsg-text">' + parseEmotes(text || '—') + '</span>';
+      list.appendChild(item);
+    });
+  }
+
+  userModal.style.display = 'flex';
+  requestAnimationFrame(() => userModal.classList.add('open'));
+}
+
+function closeUserModal() {
+  userModal.classList.remove('open');
+  setTimeout(() => { userModal.style.display = 'none'; }, 380);
+}
+
+document.getElementById('user-close').addEventListener('click', closeUserModal);
+userModal.addEventListener('click', e => { if (e.target === userModal) closeUserModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUserModal(); });
+
+// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// 7TV DEBUG PANEL
+// ══════════════════════════════════════════════════
+// DICE LOGIC
+// ══════════════════════════════════════════════════
+const modal       = document.getElementById('dice-modal');
+const cube        = document.getElementById('dice-cube');
+const diceScene   = document.getElementById('dice-scene');
+const winSection  = document.getElementById('winner-section');
+const spinHint    = document.getElementById('spin-hint');
+const winnerName  = document.getElementById('winner-name');
+const winnerMsgs  = document.getElementById('winner-msgs');
+
+let diceSpinning = false;
+
+// Orientări finale ale cubului pentru fețele 1-6
+const faceOrientations = {
+  1: 'rotateX(0deg)   rotateY(0deg)',
+  2: 'rotateX(-90deg) rotateY(0deg)',
+  3: 'rotateX(0deg)   rotateY(-90deg)',
+  4: 'rotateX(0deg)   rotateY(90deg)',
+  5: 'rotateX(90deg)  rotateY(0deg)',
+  6: 'rotateX(0deg)   rotateY(180deg)',
+};
+
+// Deschide modalul
+document.getElementById('dice-btn').addEventListener('click', openDiceModal);
+
+function openDiceModal() {
+  winSection.style.display = 'none';
+  spinHint.style.display   = 'block';
+  cube.classList.remove('spinning','landing');
+  cube.style.transform = 'rotateX(20deg) rotateY(30deg)';
+  modal.style.display  = 'flex';
+  // force reflow pentru tranziție
+  requestAnimationFrame(()=>{ modal.classList.add('open'); });
+}
+
+function closeDiceModal() {
+  modal.classList.remove('open');
+  setTimeout(()=>{ modal.style.display='none'; diceSpinning=false; },400);
+}
+
+document.getElementById('close-modal-btn').addEventListener('click', closeDiceModal);
+modal.addEventListener('click', e=>{ if(e.target===modal) closeDiceModal(); });
+
+document.getElementById('roll-again-btn').addEventListener('click', ()=>{
+  winSection.style.display='none';
+  spinHint.style.display='block';
+  cube.classList.remove('spinning','landing');
+  cube.style.transform='rotateX(20deg) rotateY(30deg)';
+  diceSpinning=false;
+});
+
+// Click pe zar => spin
+diceScene.addEventListener('click', rollDice);
+
+function rollDice() {
+  if (diceSpinning) return;
+
+  const users = Object.keys(counts);
+  if (users.length === 0) {
+    spinHint.textContent = '⚠ Nu există chatteri încă!';
+    return;
+  }
+
+  diceSpinning = true;
+  spinHint.style.display = 'none';
+  winSection.style.display = 'none';
+
+  // Alege câștigătorul (ponderat după numărul de mesaje)
+  const winner = pickWeightedWinner();
+
+  // Spin rapid 2.8s
+  cube.classList.remove('landing');
+  cube.style.transition = '';
+  cube.classList.add('spinning');
+  diceScene.classList.add('rolling');
+
+  setTimeout(()=>{
+    // Oprire pe o față aleatorie
+    const targetFace = Math.ceil(Math.random() * 6);
+    cube.classList.remove('spinning');
+    diceScene.classList.remove('rolling');
+    cube.classList.add('landing');
+    cube.style.transform = faceOrientations[targetFace] + ' rotateZ(0deg)';
+
+    // Arată câștigătorul după ce se oprește
+    setTimeout(()=>{
+      showWinner(winner);
+      diceSpinning = false;
+    }, 1500);
+
+  }, 2800);
+}
+
+function pickWeightedWinner() {
+  // Șansă proporțională cu numărul de mesaje
+  const entries = Object.entries(counts);
+  const total   = entries.reduce((s,[,v])=>s+v, 0);
+  let rand      = Math.random() * total;
+  for (const [user, cnt] of entries) {
+    rand -= cnt;
+    if (rand <= 0) return user;
+  }
+  return entries[entries.length-1][0];
+}
+
+function showWinner(username) {
+  winnerName.textContent = username;
+  const msgs = counts[username] || 0;
+  winnerMsgs.textContent = msgs.toLocaleString() + ' mesaje în sesiune';
+  winnerName.style.color = hashColor(username);
+  winnerName.style.textShadow = `0 0 40px ${hashColor(username)}88, 0 0 80px ${hashColor(username)}33`;
+  winSection.style.display = 'block';
+
+  // Confetti burst
+  launchConfetti();
+}
+
+// ── Mini confetti ──────────────────────────────────
+function launchConfetti() {
+  const colors=['#53fc18','#FFD700','#00e5ff','#ff6b6b','#c77dff','#ff9f1c'];
+  for (let i=0;i<55;i++) {
+    const el=document.createElement('div');
+    el.style.cssText=`
+      position:fixed;pointer-events:none;z-index:9999;
+      width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      border-radius:${Math.random()>.5?'50%':'2px'};
+      left:${20+Math.random()*60}%;
+      top:-20px;
+      opacity:1;
+    `;
+    document.body.appendChild(el);
+    const dur = 1800+Math.random()*1200;
+    const tx  = (Math.random()-0.5)*300;
+    el.animate([
+      {transform:`translate(0,0) rotate(0deg)`,opacity:1},
+      {transform:`translate(${tx}px,${window.innerHeight+100}px) rotate(${Math.random()*720}deg)`,opacity:0}
+    ],{duration:dur,delay:Math.random()*600,easing:'cubic-bezier(.25,.46,.45,.94)'})
+     .finished.then(()=>el.remove());
+  }
+}
+</script>
+
+</body>
+</html>
