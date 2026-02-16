@@ -2223,10 +2223,18 @@ passwordConfirm.addEventListener('click', async () => {
   for(const k in counts) delete counts[k];
   for(const k in userMeta) delete userMeta[k];
   for(const k in messages) delete messages[k];
+  for(const k in emoteUsage) delete emoteUsage[k];
+  for(const k in emotesMap) delete emotesMap[k];
   totalMsgs=0; mpmBuf=[]; peakViewers=0;
   ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
   document.getElementById('s-peak').textContent='—';
   boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
+  
+  // Clear top emotes section
+  const topEmotesContainer = document.getElementById('top-emotes');
+  if (topEmotesContainer) {
+    topEmotesContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px;">Niciun emote folosit încă</div>';
+  }
   
   // Clear saved state
   clearState();
