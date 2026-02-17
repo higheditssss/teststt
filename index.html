@@ -859,7 +859,8 @@ const MAX_MSGS_PER_USER = 200;
 let totalMsgs=0,isLive=false,chatroomId=null,channelUser='',sessionId='';
 let pusher,chan,mpmBuf=[],renderTid=null;
 let peakViewers=0;
-let TOP=50; // Număr customizabil de chatteri afișați
+let TOP=50;
+let trackingStopped = false; // Număr customizabil de chatteri afișați
 
 // Activity panels
 let emoteUsage = {}; // emote name → count
@@ -1387,10 +1388,7 @@ async function loadState() {
 async function clearState() {
   if (!channelUser) return;
   try {
-    // Șterge din localStorage
     localStorage.removeItem(getStorageKey('state'));
-    
-    // Șterge din Redis (cloud)
     try {
       await fetch(`/api/cache?action=clear&key=${encodeURIComponent(getStorageKey('state'))}`);
       console.log('✓ Stare resetată (localStorage + cloud)');
@@ -1401,6 +1399,88 @@ async function clearState() {
     console.warn('Failed to clear state:', e);
   }
 }
+
+// ── Broadcast comenzi către toate browserele ──────────
+async function broadcastCommand(cmd) {
+  // cmd = 'reset' sau 'stop' sau 'resume'
+  if (!channelUser) return;
+  const key = getStorageKey('cmd');
+  const payload = { cmd, ts: Date.now() };
+  try {
+    await fetch(`/api/cache?action=set&key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    console.log('📡 Comandă broadcast:', cmd);
+  } catch(e) {
+    console.warn('Broadcast failed:', e);
+  }
+}
+
+let lastCmdTs = 0; // timestamp-ul ultimei comenzi executate local
+
+async function pollCommands() {
+  if (!channelUser) return;
+  const key = getStorageKey('cmd');
+  try {
+    const res = await fetch(`/api/cache?action=get&key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (!data.cached || !data.data) return;
+
+    const { cmd, ts } = data.data;
+    if (!ts || ts <= lastCmdTs) return; // comandă deja executată sau veche
+    lastCmdTs = ts;
+
+    console.log('📡 Comandă primită:', cmd);
+
+    if (cmd === 'reset') {
+      executeReset();
+    } else if (cmd === 'stop') {
+      if (!trackingStopped) {
+        trackingStopped = true;
+        const btnStop = document.getElementById('btn-stop');
+        if (btnStop) { btnStop.textContent = '▶ Reia tracking'; btnStop.classList.add('stopped'); }
+        showToast('⏸ Tracking oprit de admin!', 'orange');
+      }
+    } else if (cmd === 'resume') {
+      if (trackingStopped) {
+        trackingStopped = false;
+        const btnStop = document.getElementById('btn-stop');
+        if (btnStop) { btnStop.textContent = '⏸ Oprește tracking'; btnStop.classList.remove('stopped'); }
+        showToast('▶ Tracking reluat!', 'green');
+      }
+    }
+  } catch(e) { /* fail silently */ }
+}
+
+function executeReset() {
+  for(const k in counts) delete counts[k];
+  for(const k in userMeta) delete userMeta[k];
+  for(const k in messages) delete messages[k];
+  for(const k in emoteUsage) delete emoteUsage[k];
+  for(const k in emotesMap) delete emotesMap[k];
+  totalMsgs=0; mpmBuf=[]; peakViewers=0;
+  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('s-peak').textContent='—';
+  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
+  updateTopEmotes();
+  localStorage.removeItem(getStorageKey('state'));
+  showToast('✓ Statistici resetate!', 'green');
+}
+
+function showToast(msg, color) {
+  const colors = { green: ['var(--g)', 'rgba(83,252,24,.4)'], orange: ['rgba(255,165,0,1)', 'rgba(255,165,0,.4)'] };
+  const [bg, shadow] = colors[color] || colors.green;
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${bg};color:#000;padding:12px 24px;border-radius:8px;font-weight:600;z-index:400;box-shadow:0 4px 20px ${shadow};animation:slideDown .3s ease;`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.animation='slideUp .3s ease'; setTimeout(()=>el.remove(), 300); }, 2000);
+}
+
+// Polling la fiecare 3 secunde pentru comenzi
+setInterval(pollCommands, 3000);
 
 function updateURL() {
   const newUrl = `${window.location.pathname}?user=${channelUser}&session=${sessionId}`;
@@ -2487,117 +2567,66 @@ topInput.addEventListener('keydown', (e) => {
 // ══════════════════════════════════════════════════
 // STOP TRACKING BUTTON
 // ══════════════════════════════════════════════════
-let trackingStopped = false;
 const btnStop = document.getElementById('btn-stop');
 
 btnStop.addEventListener('click', () => {
   if (trackingStopped) {
-    // Resume tracking
+    // Resume fara parola - doar trimitem broadcast
     trackingStopped = false;
     btnStop.textContent = '⏸ Oprește tracking';
     btnStop.classList.remove('stopped');
+    lastCmdTs = Date.now(); // evita sa-si execute propria comanda
+    broadcastCommand('resume');
     return;
   }
-  
-  // Stop tracking - ask for password
+  // Stop - cere parola
   passwordModal.classList.add('open');
   passwordInput.value = '';
   passwordError.textContent = '';
-  passwordInput.dataset.action = 'stop'; // Mark this as a stop action
+  passwordInput.dataset.action = 'stop';
   setTimeout(() => passwordInput.focus(), 100);
 });
-
-// Modify password confirm to handle both reset and stop
-const originalPasswordConfirm = passwordConfirm.onclick;
-passwordConfirm.onclick = null; // Remove old listener
 
 passwordConfirm.addEventListener('click', async () => {
   const enteredPassword = passwordInput.value.trim();
   const action = passwordInput.dataset.action || 'reset';
-  
+
   if (!enteredPassword) {
     passwordError.textContent = '⚠ Introdu o parolă';
     return;
   }
-  
-  // Hash the entered password and compare
+
   const enteredHash = await hashPassword(enteredPassword);
-  
   if (enteredHash !== RESET_PASS_HASH) {
     passwordError.textContent = '❌ Parolă incorectă! Verifică pe Instagram.';
     passwordInput.value = '';
     passwordInput.focus();
     return;
   }
-  
-  // Password correct
+
+  closePasswordModal();
+
   if (action === 'stop') {
-    // Stop tracking
+    // Aplica local
     trackingStopped = true;
     btnStop.textContent = '▶ Reia tracking';
     btnStop.classList.add('stopped');
-    closePasswordModal();
-    
-    // Success feedback
-    const successMsg = document.createElement('div');
-    successMsg.style.cssText = `
-      position:fixed;top:20px;left:50%;transform:translateX(-50%);
-      background:rgba(255,165,0,1);color:#000;padding:12px 24px;
-      border-radius:8px;font-weight:600;z-index:400;
-      box-shadow:0 4px 20px rgba(255,165,0,.4);
-      animation:slideDown .3s ease;
-    `;
-    successMsg.textContent = '⏸ Tracking oprit!';
-    document.body.appendChild(successMsg);
-    setTimeout(() => {
-      successMsg.style.animation = 'slideUp .3s ease';
-      setTimeout(() => successMsg.remove(), 300);
-    }, 2000);
+    lastCmdTs = Date.now();
+    // Broadcast la toti
+    await broadcastCommand('stop');
+    showToast('⏸ Tracking oprit pentru toți!', 'orange');
     return;
   }
-  
-  // Reset action (original logic)
-  if (!confirm('Ești sigur că vrei să resetezi toate statisticile?')) {
-    closePasswordModal();
-    return;
-  }
-  
-  for(const k in counts) delete counts[k];
-  for(const k in userMeta) delete userMeta[k];
-  for(const k in messages) delete messages[k];
-  for(const k in emoteUsage) delete emoteUsage[k];
-  for(const k in emotesMap) delete emotesMap[k];
-  totalMsgs=0; mpmBuf=[]; peakViewers=0;
-  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
-  document.getElementById('s-peak').textContent='—';
-  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
-  
-  // Clear top emotes section
-  const topEmotesContainer = document.getElementById('top-emotes');
-  if (topEmotesContainer) {
-    topEmotesContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px;">Niciun emote folosit încă</div>';
-  }
-  
-  // Clear saved state
-  clearState();
-  
-  closePasswordModal();
-  
-  // Success feedback
-  const successMsg = document.createElement('div');
-  successMsg.style.cssText = `
-    position:fixed;top:20px;left:50%;transform:translateX(-50%);
-    background:var(--g);color:#000;padding:12px 24px;
-    border-radius:8px;font-weight:600;z-index:400;
-    box-shadow:0 4px 20px rgba(83,252,24,.4);
-    animation:slideDown .3s ease;
-  `;
-  successMsg.textContent = '✓ Statistici resetate cu succes!';
-  document.body.appendChild(successMsg);
-  setTimeout(() => {
-    successMsg.style.animation = 'slideUp .3s ease';
-    setTimeout(() => successMsg.remove(), 300);
-  }, 2000);
+
+  // Reset
+  if (!confirm('Ești sigur că vrei să resetezi toate statisticile pentru toți?')) return;
+
+  // Aplica local imediat
+  executeReset();
+  lastCmdTs = Date.now();
+  // Sterge starea din cloud si trimite comanda
+  await clearState();
+  await broadcastCommand('reset');
 });
 
 </script>
