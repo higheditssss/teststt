@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Top Chatters</title>
+<title>HIGHSTATS</title>
 <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -119,8 +119,8 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 
 /* ── Podium Section ── */
 #podium-section{display:none;gap:24px;margin-bottom:20px;align-items:flex-start}
-@media (min-width:1100px){#podium-section{display:flex}}
-@media (max-width:1099px){#podium-section{display:block}#activity-graph-wrap{margin-top:20px}}
+@media (min-width:900px){#podium-section{display:flex}}
+@media (max-width:899px){#podium-section{display:block}#activity-graph-wrap{margin-top:20px}}
 
 /* ── Podium Top 3 ── */
 #podium-wrap{display:none;flex:1;min-width:0}
@@ -160,8 +160,8 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .p3 .podium-rank{color:var(--bronze)}
 
 /* ── Activity Panels ── */
-#activity-panels{flex:0 0 420px;min-width:0;display:none;flex-direction:column;gap:12px}
-.activity-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+#activity-panels{flex:0 0 860px;min-width:0;display:none;flex-direction:row;gap:12px;align-items:flex-start}
+.activity-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;flex:1;min-width:0}
 .activity-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:.4}
 .panel-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .panel-icon{font-size:24px;flex-shrink:0}
@@ -169,6 +169,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .panel-subtitle{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:3px}
 
 /* Top Emotes */
+#top-emotes-panel.hidden-panel{display:none!important}
 #top-emotes-list{display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto}
 #top-emotes-list::-webkit-scrollbar{width:4px}
 #top-emotes-list::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
@@ -180,6 +181,26 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .emote-info{flex:1;min-width:0}
 .emote-name{font-size:11px;font-weight:600;color:var(--text);text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
 .emote-count{font-family:'DM Mono',monospace;font-size:13px;color:var(--g);font-weight:600}
+
+/* ── Shame Board ── */
+#shame-board{background:var(--card);border:1px solid rgba(255,77,77,.2);border-radius:12px;padding:16px;position:relative;overflow:hidden;flex:1;min-width:0}
+#shame-board::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ff4d4d,transparent);opacity:.5}
+#shame-board.hidden{display:none}
+.shame-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,77,77,.15)}
+.shame-icon{font-size:24px;flex-shrink:0;animation:shamePulse 2s ease-in-out infinite}
+@keyframes shamePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15) rotate(-5deg)}}
+.shame-title{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#ff4d4d;letter-spacing:.08em;text-shadow:0 0 20px rgba(255,77,77,.5);line-height:1}
+.shame-subtitle{font-size:9px;color:rgba(255,120,120,.4);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:3px}
+#shame-list{display:flex;flex-direction:column;gap:6px}
+.shame-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,77,77,.04);border:1px solid rgba(255,77,77,.08);border-radius:8px;transition:all .2s;cursor:pointer}
+.shame-item:hover{background:rgba(255,77,77,.08);transform:translateX(3px)}
+.shame-rank{font-family:'Bebas Neue',sans-serif;font-size:15px;color:rgba(255,100,100,.3);width:18px;text-align:center;flex-shrink:0}
+.shame-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:13px;color:#000;flex-shrink:0;border:1px solid rgba(255,77,77,.3);overflow:hidden}
+.shame-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.shame-name{flex:1;font-size:13px;font-weight:600;color:rgba(255,160,160,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shame-count{font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,77,77,.6);font-weight:600;flex-shrink:0}
+.shame-label{font-size:9px;color:rgba(255,100,100,.35);letter-spacing:.05em;flex-shrink:0}
+.shame-item .ghost-icon{font-size:14px;flex-shrink:0;opacity:.6}
 
 /* ── Dice button ── */
 #dice-btn-wrap{display:none;justify-content:center;margin-bottom:22px}
@@ -413,11 +434,6 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 
 /* row hover hint */
 .row{transition:border-color .25s,transform .25s,background .2s}
-.row:hover::after{
-  content:'ver mesaje →';position:absolute;right:12px;bottom:5px;
-  font-size:9px;letter-spacing:.08em;color:rgba(83,252,24,.35);
-  text-transform:uppercase;
-}
 
 /* ══════════════════════════════════════════════════════════
    DICE MODAL
@@ -596,7 +612,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 <!-- ── Setup ── -->
 <div id="setup">
   <div class="setup-card">
-    <div class="setup-logo">TOP CHATTERS</div>
+    <div class="setup-logo">HIGHSTATS</div>
     <p class="setup-sub">Monitorizează cei mai activi chatteri live pe orice canal Kick</p>
     <div class="field">
       <label>Username canal</label>
@@ -707,7 +723,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <div class="header-left">
       <img id="ch-avatar" src="" alt="avatar">
       <div class="header-titles">
-        <h1>TOP CHATTERS</h1>
+        <h1>HIGHSTATS</h1>
         <div class="ch-name" id="ch-name"></div>
       </div>
     </div>
@@ -737,7 +753,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
   </div>
   
   <!-- Custom Top Input -->
-  <div id="top-selector-wrap" style="display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0 16px;flex-wrap:wrap">
+  <div id="top-selector-wrap" style="display:none;justify-content:center;align-items:center;gap:12px;margin:24px 0 16px;flex-wrap:wrap">
     <span style="font-size:13px;color:var(--muted);font-weight:600;letter-spacing:0.05em">AFIȘEAZĂ TOP:</span>
     <input type="number" id="top-input" value="50" min="1" max="500" placeholder="50" style="background:rgba(83,252,24,.04);border:1px solid rgba(83,252,24,.2);border-radius:8px;padding:8px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;width:80px;text-align:center;outline:none;transition:all .2s">
     <button id="apply-top-btn" style="background:linear-gradient(135deg, var(--g) 0%, #3fc010 100%);color:#000;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:0.05em">APLICĂ</button>
@@ -789,7 +805,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <!-- Activity Panels -->
     <div id="activity-panels">
       <!-- Top Emotes -->
-      <div class="activity-panel" id="top-emotes-panel">
+      <div class="activity-panel hidden-panel" id="top-emotes-panel">
         <div class="panel-header">
           <div class="panel-icon">😀</div>
           <div>
@@ -798,6 +814,18 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
           </div>
         </div>
         <div id="top-emotes-list"></div>
+      </div>
+
+      <!-- Shame Board -->
+      <div id="shame-board" class="hidden">
+        <div class="shame-header">
+          <div class="shame-icon">🪦</div>
+          <div>
+            <div class="shame-title">SHAME BOARD</div>
+            <div class="shame-subtitle">Cei mai leneși chatteri</div>
+          </div>
+        </div>
+        <div id="shame-list"></div>
       </div>
     </div>
   </div>
@@ -860,7 +888,6 @@ let totalMsgs=0,isLive=false,chatroomId=null,channelUser='',sessionId='';
 let pusher,chan,mpmBuf=[],renderTid=null;
 let peakViewers=0;
 let TOP=50; // Număr customizabil de chatteri afișați
-let trackingStopped = false;
 
 // Activity panels
 let emoteUsage = {}; // emote name → count
@@ -1250,14 +1277,7 @@ function getStorageKey(key) {
   return `topChatters_${channelUser}_${key}`;
 }
 
-// ── Cloud sync throttled ─────────────────────────────
-// Salvează în Redis MAXIM o dată la 5 minute
-// + doar la evenimente importante (unload, reset, stop)
-let lastCloudSync = 0;
-let cloudSyncTid = null;
-const CLOUD_SYNC_MIN_INTERVAL = 5 * 60 * 1000; // 5 minute
-
-async function saveState(forceCloud = false) {
+async function saveState() {
   if (!channelUser) return;
   try {
     const state = {
@@ -1269,33 +1289,40 @@ async function saveState(forceCloud = false) {
       emoteUsage: emoteUsage,
       emotesMap: emotesMap,
       timestamp: Date.now(),
-      lastSessionId: sessionId
+      lastSessionId: sessionId // Track care sesiune a salvat ultima dată
     };
-
-    // 1. Salvează MEREU în localStorage (0 comenzi Redis)
+    
+    // 1. Salvează IMEDIAT în localStorage (instant, nu așteaptă API)
     localStorage.setItem(getStorageKey('state'), JSON.stringify(state));
-
-    // 2. Sync în Redis doar dacă: forțat SAU a trecut intervalul minim
-    const now = Date.now();
-    if (forceCloud || (now - lastCloudSync) >= CLOUD_SYNC_MIN_INTERVAL) {
-      lastCloudSync = now;
-      syncToCloud(state).catch(() => {});
-    }
-
+    
+    // 2. Sync în Redis pentru partajare între browsere (async, nu blochează)
+    syncToCloud(state).catch(err => {
+      console.warn('Cloud sync failed, using localStorage only:', err.message);
+    });
+    
   } catch(e) {
     console.warn('Failed to save state:', e);
   }
 }
 
-// Sync la cloud (Redis)
+// Sync la cloud (Redis) pentru partajare între browsere
 async function syncToCloud(state) {
   try {
-    await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
+    const response = await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
-  } catch(e) {}
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    // console.log('☁️ Synced to cloud');
+  } catch(e) {
+    // Fail silently - localStorage funcționează oricum
+    throw e;
+  }
 }
 
 async function loadState() {
@@ -1388,138 +1415,19 @@ async function loadState() {
 async function clearState() {
   if (!channelUser) return;
   try {
+    // Șterge din localStorage
     localStorage.removeItem(getStorageKey('state'));
+    
+    // Șterge din Redis (cloud)
     try {
       await fetch(`/api/cache?action=clear&key=${encodeURIComponent(getStorageKey('state'))}`);
-    } catch(e) {}
-  } catch(e) {}
-}
-
-// ── Persistență stare Stop ────────────────────────────
-async function saveStoppedState(isStopped) {
-  const key = getStorageKey('stopped');
-  localStorage.setItem(key, isStopped ? '1' : '0');
-  try {
-    if (isStopped) {
-      await fetch(`/api/cache?action=set&key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stopped: true, ts: Date.now() })
-      });
-    } else {
-      await fetch(`/api/cache?action=clear&key=${encodeURIComponent(key)}`);
+      console.log('✓ Stare resetată (localStorage + cloud)');
+    } catch(e) {
+      console.log('✓ Stare resetată (localStorage only)');
     }
-  } catch(e) {}
-}
-
-async function loadStoppedState() {
-  const key = getStorageKey('stopped');
-  // localStorage primul (0 comenzi Redis)
-  if (localStorage.getItem(key) === '1') return true;
-  // Fallback Redis
-  try {
-    const res = await fetch(`/api/cache?action=get&key=${encodeURIComponent(key)}`);
-    const data = await res.json();
-    if (data.cached && data.data && data.data.stopped) {
-      localStorage.setItem(key, '1'); // cachează local
-      return true;
-    }
-  } catch(e) {}
-  return false;
-}
-
-// ── Broadcast comenzi ─────────────────────────────────
-// Folosit DOAR la reset/stop/resume — nu la interval!
-async function broadcastCommand(cmd) {
-  if (!channelUser) return;
-  const key = getStorageKey('cmd');
-  try {
-    await fetch(`/api/cache?action=set&key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cmd, ts: Date.now() })
-    });
-  } catch(e) {}
-}
-
-// ── Poll comenzi (optimizat) ──────────────────────────
-// Polling DOAR când tab-ul e vizibil + interval mare (30s)
-// Dacă e singurul browser deschis → 0 comenzi/lună din polling!
-let lastCmdTs = 0;
-let pollInterval = null;
-
-function startPolling() {
-  if (pollInterval) return;
-  pollInterval = setInterval(pollCommands, 60000); // 60s - echilibru bun intre reactie si consum
-}
-
-function stopPollingWhenHidden() {
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      clearInterval(pollInterval);
-      pollInterval = null;
-    } else {
-      // Când tab-ul revine, verifică imediat o dată
-      pollCommands();
-      startPolling();
-    }
-  });
-}
-
-async function pollCommands() {
-  if (!channelUser) return;
-  const key = getStorageKey('cmd');
-  try {
-    const res = await fetch(`/api/cache?action=get&key=${encodeURIComponent(key)}`);
-    const data = await res.json();
-    if (!data.cached || !data.data) return;
-    const { cmd, ts } = data.data;
-    if (!ts || ts <= lastCmdTs) return;
-    lastCmdTs = ts;
-    if (cmd === 'reset') executeReset();
-    else if (cmd === 'stop') applyStop();
-    else if (cmd === 'resume') applyResume();
-  } catch(e) {}
-}
-
-// ── Funcții stop/resume/reset ─────────────────────────
-function applyStop() {
-  trackingStopped = true;
-  const btn = document.getElementById('btn-stop');
-  if (btn) { btn.textContent = '▶ Reia tracking'; btn.classList.add('stopped'); }
-  showToast('⏸ Tracking oprit!', 'orange');
-}
-
-function applyResume() {
-  trackingStopped = false;
-  const btn = document.getElementById('btn-stop');
-  if (btn) { btn.textContent = '⏸ Oprește tracking'; btn.classList.remove('stopped'); }
-  showToast('▶ Tracking reluat!', 'green');
-}
-
-function executeReset() {
-  for(const k in counts) delete counts[k];
-  for(const k in userMeta) delete userMeta[k];
-  for(const k in messages) delete messages[k];
-  for(const k in emoteUsage) delete emoteUsage[k];
-  for(const k in emotesMap) delete emotesMap[k];
-  totalMsgs=0; mpmBuf=[]; peakViewers=0;
-  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
-  document.getElementById('s-peak').textContent='—';
-  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
-  updateTopEmotes();
-  localStorage.removeItem(getStorageKey('state'));
-  showToast('✓ Statistici resetate!', 'green');
-}
-
-function showToast(msg, color) {
-  const p = { green: ['var(--g)', 'rgba(83,252,24,.4)'], orange: ['rgba(255,165,0,1)', 'rgba(255,165,0,.4)'] };
-  const [bg, sh] = p[color] || p.green;
-  const el = document.createElement('div');
-  el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${bg};color:#000;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;box-shadow:0 4px 20px ${sh};`;
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2500);
+  } catch(e) {
+    console.warn('Failed to clear state:', e);
+  }
 }
 
 function updateURL() {
@@ -1527,12 +1435,11 @@ function updateURL() {
   window.history.replaceState({}, '', newUrl);
 }
 
-// Auto-save localStorage la fiecare 30s (0 comenzi Redis)
-// Cloud sync automat la fiecare 5 minute (via saveState throttle)
-setInterval(() => saveState(false), 30000);
+// Auto-save every 10 seconds
+setInterval(saveState, 10000);
 
-// Force cloud sync la închiderea tab-ului
-window.addEventListener('beforeunload', () => saveState(true));
+// Save on page unload
+window.addEventListener('beforeunload', saveState);
 
 // Check URL parameters on load
 const urlParams = new URLSearchParams(window.location.search);
@@ -1553,6 +1460,10 @@ if (urlUser && urlSession) {
     }, 100);
   });
 }
+// Dacă URL-ul e curat (fără ?user=...), arată întotdeauna setup-ul —
+// chiar dacă există date în localStorage. Asta permite utilizatorului
+// să navigheze la pagina principală și să aleagă un alt canal.
+// Auto-restore din localStorage se face DOAR dacă URL-ul conține deja parametrii.
 
 
 // ── Setup ──────────────────────────────────────────
@@ -1572,6 +1483,9 @@ if (inpUser && btnGo) {
   }
   
   channelUser=user;
+  
+  // Salvează ultimul user folosit pentru auto-restore la refresh
+  localStorage.setItem('topChatters_lastUser', user);
   
   // Generează sau încarcă sessionId persistent pentru acest utilizator
   sessionId = getOrCreateSessionId();
@@ -1601,9 +1515,9 @@ if (inpUser && btnGo) {
       setupEl.classList.remove('hiding');
       document.getElementById('reset-wrap').style.display='flex';
       document.getElementById('dice-btn-wrap').style.display='flex';
-      document.getElementById('top-selector-wrap').style.display='flex';
       document.getElementById('podium-section').style.display='flex';
       document.getElementById('activity-panels').style.display='flex';
+      document.getElementById('top-selector-wrap').style.display='flex';
       
       // Initialize session start time
       sessionStartTime = Date.now();
@@ -1622,18 +1536,6 @@ if (inpUser && btnGo) {
     if (loaded) {
       console.log('✓ Stare încărcată cu succes');
     }
-
-    // Verifică dacă tracking-ul a fost oprit înainte de refresh
-    const wasStopped = await loadStoppedState();
-    if (wasStopped) {
-      trackingStopped = true;
-      const btnStop = document.getElementById('btn-stop');
-      if (btnStop) { btnStop.textContent = '▶ Reia tracking'; btnStop.classList.add('stopped'); }
-    }
-
-    // Pornește polling comenzi (optimizat - 30s, doar când tab vizibil)
-    startPolling();
-    stopPollingWhenHidden();
 
     // Load emotes (7TV + Kick global + Kick channel-specific)
     if (channelKickUserId) load7TVEmotes(channelKickUserId);
@@ -1662,7 +1564,13 @@ if (inpUser && btnGo) {
 
 async function getChannelInfo(user) {
   const res=await fetch('/api/channel?user='+encodeURIComponent(user));
-  const json=await res.json();
+  let json;
+  try {
+    json = await res.json();
+  } catch(parseErr) {
+    // Server returned HTML instead of JSON (e.g. Vercel routing misconfiguration)
+    throw new Error('API unavailable — check /api/channel endpoint.');
+  }
   if (!res.ok||json.error) throw new Error(json.error||'Canal negăsit.');
   return json;
 }
@@ -1684,7 +1592,7 @@ function updateLiveUI(data) {
   if (data.isLive && currentViewers > peakViewers) {
     peakViewers = currentViewers;
     document.getElementById('s-peak').textContent=peakViewers.toLocaleString();
-    saveState(false); // doar localStorage, nu cloud
+    saveState();
   }
   
   renderBoard();
@@ -1905,11 +1813,13 @@ function updateTopEmotes() {
     .slice(0, 5);
   
   if (sorted.length === 0) {
-    if (listEl.children.length === 0 || !listEl.querySelector('.empty-state')) {
-      listEl.innerHTML = '<div class="empty-state" style="text-align:center;padding:20px;color:var(--muted);font-size:11px">Niciun emote folosit încă</div>';
-    }
+    // Keep panel hidden if no emotes yet
+    document.getElementById('top-emotes-panel').classList.add('hidden-panel');
     return;
   }
+  
+  // Show panel now that we have emotes
+  document.getElementById('top-emotes-panel').classList.remove('hidden-panel');
   
   // Check if order changed
   const sortedString = sorted.map(([name]) => name).join(',');
@@ -1922,7 +1832,7 @@ function updateTopEmotes() {
     
     sorted.forEach(([emoteName, count], i) => {
       const emoteData = emotesMap[emoteName];
-      if (!emoteData) return;
+      // Nu sari peste emote daca lipseste din emotesMap — arata doar numele
       
       const itemEl = document.createElement('div');
       itemEl.className = 'emote-item';
@@ -1934,8 +1844,12 @@ function updateTopEmotes() {
       
       const imgEl = document.createElement('img');
       imgEl.className = 'emote-img';
-      imgEl.src = emoteData.url2x || emoteData.url;
       imgEl.alt = emoteName;
+      if (emoteData) {
+        imgEl.src = emoteData.url2x || emoteData.url;
+      } else {
+        imgEl.style.cssText = 'opacity:0;width:28px;height:28px';
+      }
       
       const infoEl = document.createElement('div');
       infoEl.className = 'emote-info';
@@ -2110,6 +2024,59 @@ function updatePodium(sorted) {
   }
 }
 
+// ── Shame Board ────────────────────────────────────
+function updateShameBoard() {
+  const shameBoardEl = document.getElementById('shame-board');
+  const shameListEl = document.getElementById('shame-list');
+  
+  // Minim 6 useri ca să aibă sens (top 5 + cel puțin 1 în board)
+  const allUsers = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  if (allUsers.length < 6) {
+    shameBoardEl.classList.add('hidden');
+    return;
+  }
+  
+  // Luăm ultimii 5 (cei cu cele mai puține mesaje)
+  // Excludem top 3 din shame board (ar fi ciudat să fie și sus și jos)
+  const eligibleUsers = allUsers.slice(3); // exclude top 3
+  const bottom5 = eligibleUsers.slice(-5).reverse(); // ultimii 5, de la cel mai puțin activ
+  
+  shameBoardEl.classList.remove('hidden');
+  shameListEl.innerHTML = '';
+  
+  const shameLabels = ['👻 Fantomă', '🐌 Melc', '🥱 Somnoros', '🦥 Leneș', '😴 AFK'];
+  
+  bottom5.forEach(([username, count], i) => {
+    const meta = userMeta[username] || {};
+    const solidColor = meta.paintColor || hashColor(username);
+    const init = username.charAt(0).toUpperCase();
+    
+    // Avatar
+    let avatarHtml;
+    if (meta.avatar) {
+      avatarHtml = `<div class="shame-avatar"><img src="${esc(meta.avatar)}" alt="${esc(username)}" onerror="this.parentElement.innerHTML='${init}';this.parentElement.style.background='${solidColor}'"></div>`;
+    } else {
+      avatarHtml = `<div class="shame-avatar" style="background:${solidColor}">${init}</div>`;
+    }
+    
+    // Rank dintre toți userii (poziția reală)
+    const realRank = allUsers.findIndex(([u]) => u === username) + 1;
+    
+    const item = document.createElement('div');
+    item.className = 'shame-item';
+    item.onclick = () => openUserModal(username);
+    item.innerHTML = `
+      <div class="shame-rank">${realRank}</div>
+      ${avatarHtml}
+      <div class="shame-name">${esc(username)}</div>
+      <div class="ghost-icon">${shameLabels[i]}</div>
+      <div class="shame-count">${count} msg</div>
+    `;
+    
+    shameListEl.appendChild(item);
+  });
+}
+
 function renderBoard() {
   if (renderTid) clearTimeout(renderTid);
   renderTid=setTimeout(_render,120);
@@ -2122,6 +2089,9 @@ function _render() {
   
   // Update podium pentru top 3
   updatePodium(sorted);
+
+  // Update shame board (bottom 5)
+  updateShameBoard();
   
   // Lazy load avatars for ALL top users (only if they don't have one)
   sorted.forEach(([username], i) => {
@@ -2621,59 +2591,118 @@ topInput.addEventListener('keydown', (e) => {
 // ══════════════════════════════════════════════════
 // STOP TRACKING BUTTON
 // ══════════════════════════════════════════════════
+let trackingStopped = false;
 const btnStop = document.getElementById('btn-stop');
 
 btnStop.addEventListener('click', () => {
   if (trackingStopped) {
-    // Resume - fara parola
-    applyResume();
-    lastCmdTs = Date.now();
-    saveStoppedState(false);
-    broadcastCommand('resume');
+    // Resume tracking
+    trackingStopped = false;
+    btnStop.textContent = '⏸ Oprește tracking';
+    btnStop.classList.remove('stopped');
     return;
   }
-  // Stop - cere parola
+  
+  // Stop tracking - ask for password
   passwordModal.classList.add('open');
   passwordInput.value = '';
   passwordError.textContent = '';
-  passwordInput.dataset.action = 'stop';
+  passwordInput.dataset.action = 'stop'; // Mark this as a stop action
   setTimeout(() => passwordInput.focus(), 100);
 });
+
+// Modify password confirm to handle both reset and stop
+const originalPasswordConfirm = passwordConfirm.onclick;
+passwordConfirm.onclick = null; // Remove old listener
 
 passwordConfirm.addEventListener('click', async () => {
   const enteredPassword = passwordInput.value.trim();
   const action = passwordInput.dataset.action || 'reset';
-
+  
   if (!enteredPassword) {
     passwordError.textContent = '⚠ Introdu o parolă';
     return;
   }
-
+  
+  // Hash the entered password and compare
   const enteredHash = await hashPassword(enteredPassword);
+  
   if (enteredHash !== RESET_PASS_HASH) {
     passwordError.textContent = '❌ Parolă incorectă! Verifică pe Instagram.';
     passwordInput.value = '';
     passwordInput.focus();
     return;
   }
-
-  closePasswordModal();
-
+  
+  // Password correct
   if (action === 'stop') {
-    applyStop();
-    lastCmdTs = Date.now();
-    await saveStoppedState(true);
-    await broadcastCommand('stop');
+    // Stop tracking
+    trackingStopped = true;
+    btnStop.textContent = '▶ Reia tracking';
+    btnStop.classList.add('stopped');
+    closePasswordModal();
+    
+    // Success feedback
+    const successMsg = document.createElement('div');
+    successMsg.style.cssText = `
+      position:fixed;top:20px;left:50%;transform:translateX(-50%);
+      background:rgba(255,165,0,1);color:#000;padding:12px 24px;
+      border-radius:8px;font-weight:600;z-index:400;
+      box-shadow:0 4px 20px rgba(255,165,0,.4);
+      animation:slideDown .3s ease;
+    `;
+    successMsg.textContent = '⏸ Tracking oprit!';
+    document.body.appendChild(successMsg);
+    setTimeout(() => {
+      successMsg.style.animation = 'slideUp .3s ease';
+      setTimeout(() => successMsg.remove(), 300);
+    }, 2000);
     return;
   }
-
-  // Reset
-  if (!confirm('Ești sigur că vrei să resetezi toate statisticile pentru toți?')) return;
-
-  executeReset();
-  lastCmdTs = Date.now();
-  await clearState();
-  await broadcastCommand('reset');
+  
+  // Reset action (original logic)
+  if (!confirm('Ești sigur că vrei să resetezi toate statisticile?')) {
+    closePasswordModal();
+    return;
+  }
+  
+  for(const k in counts) delete counts[k];
+  for(const k in userMeta) delete userMeta[k];
+  for(const k in messages) delete messages[k];
+  for(const k in emoteUsage) delete emoteUsage[k];
+  for(const k in emotesMap) delete emotesMap[k];
+  totalMsgs=0; mpmBuf=[]; peakViewers=0;
+  ['s-total','s-users','s-mpm'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('s-peak').textContent='—';
+  boardEl.innerHTML=''; boardEl.appendChild(emptyEl); emptyEl.style.display='flex';
+  
+  // Clear top emotes section
+  const topEmotesContainer = document.getElementById('top-emotes');
+  if (topEmotesContainer) {
+    topEmotesContainer.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px;">Niciun emote folosit încă</div>';
+  }
+  document.getElementById('top-emotes-panel').classList.add('hidden-panel');
+  
+  // Clear saved state
+  clearState();
+  
+  closePasswordModal();
+  
+  // Success feedback
+  const successMsg = document.createElement('div');
+  successMsg.style.cssText = `
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);
+    background:var(--g);color:#000;padding:12px 24px;
+    border-radius:8px;font-weight:600;z-index:400;
+    box-shadow:0 4px 20px rgba(83,252,24,.4);
+    animation:slideDown .3s ease;
+  `;
+  successMsg.textContent = '✓ Statistici resetate cu succes!';
+  document.body.appendChild(successMsg);
+  setTimeout(() => {
+    successMsg.style.animation = 'slideUp .3s ease';
+    setTimeout(() => successMsg.remove(), 300);
+  }, 2000);
 });
 
 </script>
