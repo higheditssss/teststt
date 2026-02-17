@@ -859,8 +859,8 @@ const MAX_MSGS_PER_USER = 200;
 let totalMsgs=0,isLive=false,chatroomId=null,channelUser='',sessionId='';
 let pusher,chan,mpmBuf=[],renderTid=null;
 let peakViewers=0;
-let TOP=50;
-let trackingStopped = false; // Număr customizabil de chatteri afișați
+let TOP=50; // Număr customizabil de chatteri afișați
+let trackingStopped = false;
 
 // Activity panels
 let emoteUsage = {}; // emote name → count
@@ -1250,7 +1250,14 @@ function getStorageKey(key) {
   return `topChatters_${channelUser}_${key}`;
 }
 
-async function saveState() {
+// ── Cloud sync throttled ─────────────────────────────
+// Salvează în Redis MAXIM o dată la 5 minute
+// + doar la evenimente importante (unload, reset, stop)
+let lastCloudSync = 0;
+let cloudSyncTid = null;
+const CLOUD_SYNC_MIN_INTERVAL = 5 * 60 * 1000; // 5 minute
+
+async function saveState(forceCloud = false) {
   if (!channelUser) return;
   try {
     const state = {
@@ -1262,40 +1269,33 @@ async function saveState() {
       emoteUsage: emoteUsage,
       emotesMap: emotesMap,
       timestamp: Date.now(),
-      lastSessionId: sessionId // Track care sesiune a salvat ultima dată
+      lastSessionId: sessionId
     };
-    
-    // 1. Salvează IMEDIAT în localStorage (instant, nu așteaptă API)
+
+    // 1. Salvează MEREU în localStorage (0 comenzi Redis)
     localStorage.setItem(getStorageKey('state'), JSON.stringify(state));
-    
-    // 2. Sync în Redis pentru partajare între browsere (async, nu blochează)
-    syncToCloud(state).catch(err => {
-      console.warn('Cloud sync failed, using localStorage only:', err.message);
-    });
-    
+
+    // 2. Sync în Redis doar dacă: forțat SAU a trecut intervalul minim
+    const now = Date.now();
+    if (forceCloud || (now - lastCloudSync) >= CLOUD_SYNC_MIN_INTERVAL) {
+      lastCloudSync = now;
+      syncToCloud(state).catch(() => {});
+    }
+
   } catch(e) {
     console.warn('Failed to save state:', e);
   }
 }
 
-// Sync la cloud (Redis) pentru partajare între browsere
+// Sync la cloud (Redis)
 async function syncToCloud(state) {
   try {
-    const response = await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
+    await fetch(`/api/cache?action=set&key=${encodeURIComponent(getStorageKey('state'))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    // console.log('☁️ Synced to cloud');
-  } catch(e) {
-    // Fail silently - localStorage funcționează oricum
-    throw e;
-  }
+  } catch(e) {}
 }
 
 async function loadState() {
@@ -1391,34 +1391,80 @@ async function clearState() {
     localStorage.removeItem(getStorageKey('state'));
     try {
       await fetch(`/api/cache?action=clear&key=${encodeURIComponent(getStorageKey('state'))}`);
-      console.log('✓ Stare resetată (localStorage + cloud)');
-    } catch(e) {
-      console.log('✓ Stare resetată (localStorage only)');
-    }
-  } catch(e) {
-    console.warn('Failed to clear state:', e);
-  }
+    } catch(e) {}
+  } catch(e) {}
 }
 
-// ── Broadcast comenzi către toate browserele ──────────
+// ── Persistență stare Stop ────────────────────────────
+async function saveStoppedState(isStopped) {
+  const key = getStorageKey('stopped');
+  localStorage.setItem(key, isStopped ? '1' : '0');
+  try {
+    if (isStopped) {
+      await fetch(`/api/cache?action=set&key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stopped: true, ts: Date.now() })
+      });
+    } else {
+      await fetch(`/api/cache?action=clear&key=${encodeURIComponent(key)}`);
+    }
+  } catch(e) {}
+}
+
+async function loadStoppedState() {
+  const key = getStorageKey('stopped');
+  // localStorage primul (0 comenzi Redis)
+  if (localStorage.getItem(key) === '1') return true;
+  // Fallback Redis
+  try {
+    const res = await fetch(`/api/cache?action=get&key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (data.cached && data.data && data.data.stopped) {
+      localStorage.setItem(key, '1'); // cachează local
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ── Broadcast comenzi ─────────────────────────────────
+// Folosit DOAR la reset/stop/resume — nu la interval!
 async function broadcastCommand(cmd) {
-  // cmd = 'reset' sau 'stop' sau 'resume'
   if (!channelUser) return;
   const key = getStorageKey('cmd');
-  const payload = { cmd, ts: Date.now() };
   try {
     await fetch(`/api/cache?action=set&key=${encodeURIComponent(key)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ cmd, ts: Date.now() })
     });
-    console.log('📡 Comandă broadcast:', cmd);
-  } catch(e) {
-    console.warn('Broadcast failed:', e);
-  }
+  } catch(e) {}
 }
 
-let lastCmdTs = 0; // timestamp-ul ultimei comenzi executate local
+// ── Poll comenzi (optimizat) ──────────────────────────
+// Polling DOAR când tab-ul e vizibil + interval mare (30s)
+// Dacă e singurul browser deschis → 0 comenzi/lună din polling!
+let lastCmdTs = 0;
+let pollInterval = null;
+
+function startPolling() {
+  if (pollInterval) return;
+  pollInterval = setInterval(pollCommands, 60000); // 60s - echilibru bun intre reactie si consum
+}
+
+function stopPollingWhenHidden() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    } else {
+      // Când tab-ul revine, verifică imediat o dată
+      pollCommands();
+      startPolling();
+    }
+  });
+}
 
 async function pollCommands() {
   if (!channelUser) return;
@@ -1427,31 +1473,28 @@ async function pollCommands() {
     const res = await fetch(`/api/cache?action=get&key=${encodeURIComponent(key)}`);
     const data = await res.json();
     if (!data.cached || !data.data) return;
-
     const { cmd, ts } = data.data;
-    if (!ts || ts <= lastCmdTs) return; // comandă deja executată sau veche
+    if (!ts || ts <= lastCmdTs) return;
     lastCmdTs = ts;
+    if (cmd === 'reset') executeReset();
+    else if (cmd === 'stop') applyStop();
+    else if (cmd === 'resume') applyResume();
+  } catch(e) {}
+}
 
-    console.log('📡 Comandă primită:', cmd);
+// ── Funcții stop/resume/reset ─────────────────────────
+function applyStop() {
+  trackingStopped = true;
+  const btn = document.getElementById('btn-stop');
+  if (btn) { btn.textContent = '▶ Reia tracking'; btn.classList.add('stopped'); }
+  showToast('⏸ Tracking oprit!', 'orange');
+}
 
-    if (cmd === 'reset') {
-      executeReset();
-    } else if (cmd === 'stop') {
-      if (!trackingStopped) {
-        trackingStopped = true;
-        const btnStop = document.getElementById('btn-stop');
-        if (btnStop) { btnStop.textContent = '▶ Reia tracking'; btnStop.classList.add('stopped'); }
-        showToast('⏸ Tracking oprit de admin!', 'orange');
-      }
-    } else if (cmd === 'resume') {
-      if (trackingStopped) {
-        trackingStopped = false;
-        const btnStop = document.getElementById('btn-stop');
-        if (btnStop) { btnStop.textContent = '⏸ Oprește tracking'; btnStop.classList.remove('stopped'); }
-        showToast('▶ Tracking reluat!', 'green');
-      }
-    }
-  } catch(e) { /* fail silently */ }
+function applyResume() {
+  trackingStopped = false;
+  const btn = document.getElementById('btn-stop');
+  if (btn) { btn.textContent = '⏸ Oprește tracking'; btn.classList.remove('stopped'); }
+  showToast('▶ Tracking reluat!', 'green');
 }
 
 function executeReset() {
@@ -1470,28 +1513,26 @@ function executeReset() {
 }
 
 function showToast(msg, color) {
-  const colors = { green: ['var(--g)', 'rgba(83,252,24,.4)'], orange: ['rgba(255,165,0,1)', 'rgba(255,165,0,.4)'] };
-  const [bg, shadow] = colors[color] || colors.green;
+  const p = { green: ['var(--g)', 'rgba(83,252,24,.4)'], orange: ['rgba(255,165,0,1)', 'rgba(255,165,0,.4)'] };
+  const [bg, sh] = p[color] || p.green;
   const el = document.createElement('div');
-  el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${bg};color:#000;padding:12px 24px;border-radius:8px;font-weight:600;z-index:400;box-shadow:0 4px 20px ${shadow};animation:slideDown .3s ease;`;
+  el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${bg};color:#000;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;box-shadow:0 4px 20px ${sh};`;
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => { el.style.animation='slideUp .3s ease'; setTimeout(()=>el.remove(), 300); }, 2000);
+  setTimeout(() => el.remove(), 2500);
 }
-
-// Polling la fiecare 3 secunde pentru comenzi
-setInterval(pollCommands, 3000);
 
 function updateURL() {
   const newUrl = `${window.location.pathname}?user=${channelUser}&session=${sessionId}`;
   window.history.replaceState({}, '', newUrl);
 }
 
-// Auto-save every 10 seconds
-setInterval(saveState, 10000);
+// Auto-save localStorage la fiecare 30s (0 comenzi Redis)
+// Cloud sync automat la fiecare 5 minute (via saveState throttle)
+setInterval(() => saveState(false), 30000);
 
-// Save on page unload
-window.addEventListener('beforeunload', saveState);
+// Force cloud sync la închiderea tab-ului
+window.addEventListener('beforeunload', () => saveState(true));
 
 // Check URL parameters on load
 const urlParams = new URLSearchParams(window.location.search);
@@ -1560,6 +1601,7 @@ if (inpUser && btnGo) {
       setupEl.classList.remove('hiding');
       document.getElementById('reset-wrap').style.display='flex';
       document.getElementById('dice-btn-wrap').style.display='flex';
+      document.getElementById('top-selector-wrap').style.display='flex';
       document.getElementById('podium-section').style.display='flex';
       document.getElementById('activity-panels').style.display='flex';
       
@@ -1580,6 +1622,18 @@ if (inpUser && btnGo) {
     if (loaded) {
       console.log('✓ Stare încărcată cu succes');
     }
+
+    // Verifică dacă tracking-ul a fost oprit înainte de refresh
+    const wasStopped = await loadStoppedState();
+    if (wasStopped) {
+      trackingStopped = true;
+      const btnStop = document.getElementById('btn-stop');
+      if (btnStop) { btnStop.textContent = '▶ Reia tracking'; btnStop.classList.add('stopped'); }
+    }
+
+    // Pornește polling comenzi (optimizat - 30s, doar când tab vizibil)
+    startPolling();
+    stopPollingWhenHidden();
 
     // Load emotes (7TV + Kick global + Kick channel-specific)
     if (channelKickUserId) load7TVEmotes(channelKickUserId);
@@ -1630,7 +1684,7 @@ function updateLiveUI(data) {
   if (data.isLive && currentViewers > peakViewers) {
     peakViewers = currentViewers;
     document.getElementById('s-peak').textContent=peakViewers.toLocaleString();
-    saveState();
+    saveState(false); // doar localStorage, nu cloud
   }
   
   renderBoard();
@@ -2571,11 +2625,10 @@ const btnStop = document.getElementById('btn-stop');
 
 btnStop.addEventListener('click', () => {
   if (trackingStopped) {
-    // Resume fara parola - doar trimitem broadcast
-    trackingStopped = false;
-    btnStop.textContent = '⏸ Oprește tracking';
-    btnStop.classList.remove('stopped');
-    lastCmdTs = Date.now(); // evita sa-si execute propria comanda
+    // Resume - fara parola
+    applyResume();
+    lastCmdTs = Date.now();
+    saveStoppedState(false);
     broadcastCommand('resume');
     return;
   }
@@ -2607,24 +2660,18 @@ passwordConfirm.addEventListener('click', async () => {
   closePasswordModal();
 
   if (action === 'stop') {
-    // Aplica local
-    trackingStopped = true;
-    btnStop.textContent = '▶ Reia tracking';
-    btnStop.classList.add('stopped');
+    applyStop();
     lastCmdTs = Date.now();
-    // Broadcast la toti
+    await saveStoppedState(true);
     await broadcastCommand('stop');
-    showToast('⏸ Tracking oprit pentru toți!', 'orange');
     return;
   }
 
   // Reset
   if (!confirm('Ești sigur că vrei să resetezi toate statisticile pentru toți?')) return;
 
-  // Aplica local imediat
   executeReset();
   lastCmdTs = Date.now();
-  // Sterge starea din cloud si trimite comanda
   await clearState();
   await broadcastCommand('reset');
 });
