@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HIGHSTATS</title>
+<title>Top Chatters</title>
 <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -119,8 +119,8 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 
 /* ── Podium Section ── */
 #podium-section{display:none;gap:24px;margin-bottom:20px;align-items:flex-start}
-@media (min-width:900px){#podium-section{display:flex}}
-@media (max-width:899px){#podium-section{display:block}#activity-graph-wrap{margin-top:20px}}
+#podium-section.active-section{display:flex}
+@media (max-width:899px){#podium-section.active-section{display:block}#activity-graph-wrap{margin-top:20px}}
 
 /* ── Podium Top 3 ── */
 #podium-wrap{display:none;flex:1;min-width:0}
@@ -160,7 +160,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .p3 .podium-rank{color:var(--bronze)}
 
 /* ── Activity Panels ── */
-#activity-panels{flex:0 0 860px;min-width:0;display:none;flex-direction:row;gap:12px;align-items:flex-start}
+#activity-panels{flex:0 0 860px;min-width:0;display:none;flex-direction:row;gap:12px;align-items:flex-start;max-width:100%}
 .activity-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;flex:1;min-width:0}
 .activity-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:.4}
 .panel-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
@@ -192,15 +192,27 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .shame-title{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#ff4d4d;letter-spacing:.08em;text-shadow:0 0 20px rgba(255,77,77,.5);line-height:1}
 .shame-subtitle{font-size:9px;color:rgba(255,120,120,.4);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:3px}
 #shame-list{display:flex;flex-direction:column;gap:6px}
-.shame-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,77,77,.04);border:1px solid rgba(255,77,77,.08);border-radius:8px;transition:all .2s;cursor:pointer}
-.shame-item:hover{background:rgba(255,77,77,.08);transform:translateX(3px)}
-.shame-rank{font-family:'Bebas Neue',sans-serif;font-size:15px;color:rgba(255,100,100,.3);width:18px;text-align:center;flex-shrink:0}
-.shame-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:13px;color:#000;flex-shrink:0;border:1px solid rgba(255,77,77,.3);overflow:hidden}
+.shame-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,77,77,.03);border:1px solid rgba(255,77,77,.06);border-radius:10px;transition:all .2s;cursor:pointer;position:relative;overflow:hidden}
+.shame-item:hover{background:rgba(255,77,77,.08);border-color:rgba(255,77,77,.2);transform:translateX(4px)}
+.shame-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:10px 0 0 10px}
+.shame-item:nth-child(1)::before{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}
+.shame-item:nth-child(2)::before{background:#ff7a00;box-shadow:0 0 8px #ff7a00}
+.shame-item:nth-child(3)::before{background:#ffaa00;box-shadow:0 0 8px #ffaa00}
+.shame-item:nth-child(4)::before{background:#c8a000;box-shadow:0 0 6px #c8a000}
+.shame-item:nth-child(5)::before{background:#888;box-shadow:0 0 6px #888}
+.shame-rank{font-family:'Bebas Neue',sans-serif;font-size:14px;color:rgba(255,100,100,.25);width:18px;text-align:center;flex-shrink:0}
+.shame-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:13px;color:#fff;flex-shrink:0;border:1px solid rgba(255,77,77,.2);overflow:hidden;opacity:.75}
 .shame-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.shame-name{flex:1;font-size:13px;font-weight:600;color:rgba(255,160,160,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.shame-count{font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,77,77,.6);font-weight:600;flex-shrink:0}
-.shame-label{font-size:9px;color:rgba(255,100,100,.35);letter-spacing:.05em;flex-shrink:0}
-.shame-item .ghost-icon{font-size:14px;flex-shrink:0;opacity:.6}
+.shame-info{flex:1;min-width:0}
+.shame-name{font-size:13px;font-weight:600;color:rgba(255,180,180,.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
+.shame-title-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid}
+.shame-item:nth-child(1) .shame-title-badge{color:#ff4d4d;border-color:rgba(255,77,77,.3);background:rgba(255,77,77,.1)}
+.shame-item:nth-child(2) .shame-title-badge{color:#ff7a00;border-color:rgba(255,122,0,.3);background:rgba(255,122,0,.1)}
+.shame-item:nth-child(3) .shame-title-badge{color:#ffaa00;border-color:rgba(255,170,0,.3);background:rgba(255,170,0,.1)}
+.shame-item:nth-child(4) .shame-title-badge{color:#c8b400;border-color:rgba(200,180,0,.3);background:rgba(200,180,0,.08)}
+.shame-item:nth-child(5) .shame-title-badge{color:#aaa;border-color:rgba(160,160,160,.25);background:rgba(160,160,160,.07)}
+.shame-count{font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,100,100,.5);font-weight:600;flex-shrink:0;text-align:right}
+.shame-count span{display:block;font-size:8px;color:rgba(255,100,100,.3);letter-spacing:.05em;text-transform:uppercase;margin-top:1px}
 
 /* ── Dice button ── */
 #dice-btn-wrap{display:none;justify-content:center;margin-bottom:22px}
@@ -220,7 +232,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 #dice-btn:hover .dice-icon{transform:rotate(20deg)}
 
 /* ── Board ── */
-#board{display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:8px;align-items:start}
+#board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(450px,100%),1fr));gap:8px;align-items:start}
 @media (max-width:1000px){#board{grid-template-columns:1fr}}
 #empty{text-align:center;padding:70px 20px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:14px;grid-column:1/-1}
 #empty .ico{font-size:44px;opacity:.35}
@@ -258,6 +270,8 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 
 /* ── Reset ── */
 #reset-wrap{display:none;justify-content:center;gap:16px;margin-top:32px;flex-wrap:wrap}
+#btn-stats{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(83,252,24,.25);color:rgba(83,252,24,.6);border-radius:8px;padding:9px 22px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;text-decoration:none;font-weight:500}
+#btn-stats:hover{border-color:var(--g);color:var(--g);background:rgba(83,252,24,.07)}
 #btn-reset,#btn-stop{background:transparent;border:1px solid rgba(255,77,77,.25);color:rgba(255,77,77,.55);border-radius:8px;padding:9px 22px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
 #btn-reset:hover,#btn-stop:hover{border-color:var(--red);color:var(--red);background:rgba(255,77,77,.07)}
 #btn-stop{border-color:rgba(255,165,0,.25);color:rgba(255,165,0,.65)}
@@ -524,14 +538,8 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 .face.bottom{transform:rotateX(-90deg) translateZ(50px)}
 
 /* Dots layout */
-.dots{display:grid;width:72px;height:72px;gap:5px;padding:4px}
+.dots{display:grid;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;place-items:center}
 .dot{width:14px;height:14px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)}
-.face[data-face="1"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;place-items:center}
-.face[data-face="2"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
-.face[data-face="3"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
-.face[data-face="4"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
-.face[data-face="5"] .dots{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
-.face[data-face="6"] .dots{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr}
 
 /* Winner reveal */
 #winner-section{display:none;animation:winnerPop .5s cubic-bezier(.22,1,.36,1)}
@@ -593,7 +601,125 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(83,252,24,.15);border-radius:2px}
-@media(max-width:520px){.header-titles h1{font-size:34px}.wrap{padding:0 14px 50px}.setup-card{padding:28px 22px}.stat-chip{min-width:90px}#winner-name{font-size:38px}#modal-box{padding:32px 24px 28px}}
+/* ═══════════════════════════════════════════
+   RESPONSIVE — TABLET  (max 900px)
+═══════════════════════════════════════════ */
+@media(max-width:900px){
+  .wrap{padding:0 20px 60px}
+  header{padding:28px 0 20px;gap:14px}
+  .header-titles h1{font-size:42px}
+  #theme-selector{flex-wrap:wrap;gap:4px}
+
+  /* Stats: 2 coloane pe tablet */
+  .stats-row{gap:10px}
+  .stat-chip{min-width:130px;padding:12px 16px}
+  .stat-chip .val{font-size:26px}
+
+  /* Activity panels: vertical pe tablet */
+  #activity-panels{flex-direction:column;flex:unset;width:100%}
+
+  /* Podium section: stacked */
+  #podium-section{flex-direction:column}
+  #activity-graph-wrap{margin-top:16px;width:100%}
+
+  /* Board: 1 coloana */
+  #board{grid-template-columns:1fr}
+
+  /* Top selector */
+  #top-selector-wrap{flex-wrap:wrap;justify-content:center}
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — MOBILE  (max 600px)
+═══════════════════════════════════════════ */
+@media(max-width:600px){
+  .wrap{padding:0 12px 60px}
+
+  /* Header compact */
+  header{padding:18px 0 16px;flex-direction:column;align-items:flex-start;gap:10px;flex-wrap:nowrap}
+  .header-left{gap:12px}
+  .header-right{width:100%;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-top:0}
+  #ch-avatar{width:48px;height:48px}
+  .header-titles h1{font-size:34px}
+  .header-titles .ch-name{font-size:12px}
+  #theme-selector{gap:4px;padding:3px 6px}
+  .theme-btn{width:18px;height:18px}
+
+  /* Setup card */
+  .setup-card{padding:28px 20px}
+  .setup-logo{font-size:40px}
+  .setup-sub{font-size:13px;margin-bottom:28px}
+  .field input{padding:13px 16px;font-size:15px}
+  #btn-go{font-size:20px;padding:15px 20px}
+
+  /* Stats: 2x2 grid */
+  .stats-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+  .stat-chip{min-width:0;max-width:none;padding:12px 14px}
+  .stat-chip .val{font-size:24px}
+  .stat-chip .lbl{font-size:9px}
+
+  /* Podium: ascuns pe mobile mic */
+  #podium-wrap{display:none!important}
+
+  /* Activity panels */
+  #activity-panels{gap:10px}
+  .activity-panel{padding:12px}
+  #shame-board{padding:12px}
+
+  /* Board rows: mai compacte */
+  .row{padding:8px 12px;gap:8px}
+  .rank{font-size:16px;width:26px}
+  .avatar{width:30px;height:30px;font-size:12px}
+  .uname{font-size:13px}
+  .count .num{font-size:13px}
+  .mod-badge,.seventv-badge{font-size:8px;padding:2px 5px}
+
+  /* Top selector */
+  #top-selector-wrap{gap:8px}
+  #top-input{width:60px;font-size:14px;padding:8px 10px}
+  #apply-top-btn{font-size:14px;padding:8px 14px}
+
+  /* Dice btn */
+  #dice-btn{font-size:15px;padding:9px 18px}
+
+  /* Reset wrap */
+  #reset-wrap{gap:10px;margin-top:20px}
+  #btn-reset,#btn-stop{font-size:12px;padding:8px 16px}
+
+  /* Dice modal */
+  #modal-box{padding:28px 20px 24px;max-width:calc(100vw - 32px)}
+  #winner-name{font-size:36px}
+  .dice-scene{width:80px;height:80px}
+  .dice-cube{width:80px;height:80px}
+  .face{width:80px;height:80px}
+  .face.front{transform:translateZ(40px)}
+  .face.back{transform:rotateY(180deg) translateZ(40px)}
+  .face.right{transform:rotateY(90deg) translateZ(40px)}
+  .face.left{transform:rotateY(-90deg) translateZ(40px)}
+  .face.top{transform:rotateX(90deg) translateZ(40px)}
+  .face.bottom{transform:rotateX(-90deg) translateZ(40px)}
+  .dots{width:58px;height:58px}
+  .dot{width:11px;height:11px}
+
+  /* Modals */
+  #password-box{padding:24px 18px}
+  #user-box{max-height:90vh}
+  #user-header{padding:16px 16px 12px}
+  .umsg{padding:8px 16px}
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — MOBILE XS  (max 400px)
+═══════════════════════════════════════════ */
+@media(max-width:400px){
+  .header-titles h1{font-size:28px}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .stat-chip .val{font-size:20px}
+  #winner-name{font-size:28px}
+  .setup-logo{font-size:34px}
+  #board{gap:6px}
+  .row{padding:7px 10px}
+}
 </style>
 </head>
 <body>
@@ -612,7 +738,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 <!-- ── Setup ── -->
 <div id="setup">
   <div class="setup-card">
-    <div class="setup-logo">HIGHSTATS</div>
+    <div class="setup-logo">TOP CHATTERS</div>
     <p class="setup-sub">Monitorizează cei mai activi chatteri live pe orice canal Kick</p>
     <div class="field">
       <label>Username canal</label>
@@ -630,50 +756,40 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 
     <div class="dice-scene" id="dice-scene">
       <div class="dice-cube" id="dice-cube">
-        <!-- 1 -->
+        <!-- 1 (front) -->
         <div class="face front" data-face="1">
-          <div class="dots" style="display:grid;place-items:center">
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
             <div class="dot" style="grid-column:2;grid-row:2"></div>
           </div>
         </div>
-        <!-- 6 -->
+        <!-- 6 (back) -->
         <div class="face back" data-face="6">
-          <div class="dots">
-            <div class="dot"></div><div class="dot"></div>
-            <div class="dot"></div><div class="dot"></div>
-            <div class="dot"></div><div class="dot"></div>
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
+            <div class="dot" style="grid-column:1;grid-row:1"></div><div class="dot" style="grid-column:3;grid-row:1"></div><div class="dot" style="grid-column:1;grid-row:2"></div><div class="dot" style="grid-column:3;grid-row:2"></div><div class="dot" style="grid-column:1;grid-row:3"></div><div class="dot" style="grid-column:3;grid-row:3"></div>
           </div>
         </div>
-        <!-- 3 -->
+        <!-- 3 (right) -->
         <div class="face right" data-face="3">
-          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr">
-            <div class="dot" style="grid-column:3;grid-row:1"></div>
-            <div class="dot" style="grid-column:2;grid-row:2"></div>
-            <div class="dot" style="grid-column:1;grid-row:3"></div>
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
+            <div class="dot" style="grid-column:3;grid-row:1"></div><div class="dot" style="grid-column:2;grid-row:2"></div><div class="dot" style="grid-column:1;grid-row:3"></div>
           </div>
         </div>
-        <!-- 4 -->
+        <!-- 4 (left) -->
         <div class="face left" data-face="4">
-          <div class="dots">
-            <div class="dot"></div><div class="dot"></div>
-            <div class="dot"></div><div class="dot"></div>
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
+            <div class="dot" style="grid-column:1;grid-row:1"></div><div class="dot" style="grid-column:3;grid-row:1"></div><div class="dot" style="grid-column:1;grid-row:3"></div><div class="dot" style="grid-column:3;grid-row:3"></div>
           </div>
         </div>
-        <!-- 2 -->
+        <!-- 2 (top) -->
         <div class="face top" data-face="2">
-          <div class="dots">
-            <div class="dot" style="grid-column:1;grid-row:1"></div>
-            <div class="dot" style="grid-column:2;grid-row:2"></div>
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
+            <div class="dot" style="grid-column:3;grid-row:1"></div><div class="dot" style="grid-column:1;grid-row:3"></div>
           </div>
         </div>
-        <!-- 5 -->
+        <!-- 5 (bottom) -->
         <div class="face bottom" data-face="5">
-          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr">
-            <div class="dot" style="grid-column:1;grid-row:1"></div>
-            <div class="dot" style="grid-column:3;grid-row:1"></div>
-            <div class="dot" style="grid-column:2;grid-row:2"></div>
-            <div class="dot" style="grid-column:1;grid-row:3"></div>
-            <div class="dot" style="grid-column:3;grid-row:3"></div>
+          <div class="dots" style="display:grid;place-items:center;width:72px;height:72px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:0">
+            <div class="dot" style="grid-column:1;grid-row:1"></div><div class="dot" style="grid-column:3;grid-row:1"></div><div class="dot" style="grid-column:2;grid-row:2"></div><div class="dot" style="grid-column:1;grid-row:3"></div><div class="dot" style="grid-column:3;grid-row:3"></div>
           </div>
         </div>
       </div>
@@ -723,7 +839,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <div class="header-left">
       <img id="ch-avatar" src="" alt="avatar">
       <div class="header-titles">
-        <h1>HIGHSTATS</h1>
+        <h1>TOP CHATTERS</h1>
         <div class="ch-name" id="ch-name"></div>
       </div>
     </div>
@@ -759,7 +875,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
     <button id="apply-top-btn" style="background:linear-gradient(135deg, var(--g) 0%, #3fc010 100%);color:#000;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:0.05em">APLICĂ</button>
   </div>
   
-  <!-- Podium + Activity Graph Section -->
+  <!-- Podium + Activity Panels Section -->
   <div id="podium-section">
     <!-- Top 3 Podium -->
     <div id="podium-wrap">
@@ -775,7 +891,6 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
             <div class="podium-rank">1</div>
           </div>
         </div>
-        
         <!-- Locul 2 (stânga) -->
         <div class="podium-place p2">
           <div class="podium-avatar-wrap">
@@ -787,7 +902,6 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
             <div class="podium-rank">2</div>
           </div>
         </div>
-        
         <!-- Locul 3 (dreapta) -->
         <div class="podium-place p3">
           <div class="podium-avatar-wrap">
@@ -819,10 +933,10 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
       <!-- Shame Board -->
       <div id="shame-board" class="hidden">
         <div class="shame-header">
-          <div class="shame-icon">🪦</div>
+          <div class="shame-icon">💀</div>
           <div>
-            <div class="shame-title">SHAME BOARD</div>
-            <div class="shame-subtitle">Cei mai leneși chatteri</div>
+            <div class="shame-title">HALL OF SHAME</div>
+            <div class="shame-subtitle">Cei mai inactivi din sesiune</div>
           </div>
         </div>
         <div id="shame-list"></div>
@@ -1439,7 +1553,7 @@ function updateURL() {
 setInterval(saveState, 10000);
 
 // Save on page unload
-window.addEventListener('beforeunload', saveState);
+window.addEventListener('beforeunload', () => { archiveCurrentSession(); saveState(); });
 
 // Check URL parameters on load
 const urlParams = new URLSearchParams(window.location.search);
@@ -1515,7 +1629,7 @@ if (inpUser && btnGo) {
       setupEl.classList.remove('hiding');
       document.getElementById('reset-wrap').style.display='flex';
       document.getElementById('dice-btn-wrap').style.display='flex';
-      document.getElementById('podium-section').style.display='flex';
+      document.getElementById('podium-section').classList.add('active-section');
       document.getElementById('activity-panels').style.display='flex';
       document.getElementById('top-selector-wrap').style.display='flex';
       
@@ -1895,7 +2009,7 @@ function updatePodium(sorted) {
   // Arată podiumul dacă avem cel puțin 1 chatter
   if (sorted.length >= 1) {
     podiumWrap.style.display = 'block';
-    document.getElementById('podium-section').style.display = 'flex';
+    document.getElementById('podium-section').classList.add('active-section');
     
     // Lazy load avatars for top 3 podium users
     sorted.slice(0, 3).forEach(([username]) => {
@@ -2044,7 +2158,13 @@ function updateShameBoard() {
   shameBoardEl.classList.remove('hidden');
   shameListEl.innerHTML = '';
   
-  const shameLabels = ['👻 Fantomă', '🐌 Melc', '🥱 Somnoros', '🦥 Leneș', '😴 AFK'];
+  const shameLabels = [
+    { icon: '👻', title: 'FANTOMĂ',  desc: 'invizibil' },
+    { icon: '🐌', title: 'MELC',     desc: 'ultra-lent' },
+    { icon: '🥱', title: 'SOMNOROS', desc: 'pe jumătate adormit' },
+    { icon: '🦥', title: 'LENEȘ',    desc: 'nu face nimic' },
+    { icon: '😴', title: 'AFK',      desc: 'absent' },
+  ];
   
   bottom5.forEach(([username, count], i) => {
     const meta = userMeta[username] || {};
@@ -2056,7 +2176,7 @@ function updateShameBoard() {
     if (meta.avatar) {
       avatarHtml = `<div class="shame-avatar"><img src="${esc(meta.avatar)}" alt="${esc(username)}" onerror="this.parentElement.innerHTML='${init}';this.parentElement.style.background='${solidColor}'"></div>`;
     } else {
-      avatarHtml = `<div class="shame-avatar" style="background:${solidColor}">${init}</div>`;
+      avatarHtml = `<div class="shame-avatar" style="background:${solidColor};opacity:0.6">${init}</div>`;
     }
     
     // Rank dintre toți userii (poziția reală)
@@ -2065,12 +2185,15 @@ function updateShameBoard() {
     const item = document.createElement('div');
     item.className = 'shame-item';
     item.onclick = () => openUserModal(username);
+    const label = shameLabels[i];
     item.innerHTML = `
       <div class="shame-rank">${realRank}</div>
       ${avatarHtml}
-      <div class="shame-name">${esc(username)}</div>
-      <div class="ghost-icon">${shameLabels[i]}</div>
-      <div class="shame-count">${count} msg</div>
+      <div class="shame-info">
+        <div class="shame-name">${esc(username)}</div>
+        <div class="shame-title-badge">${label.icon} ${label.title}</div>
+      </div>
+      <div class="shame-count">${count}<span>msg</span></div>
     `;
     
     shameListEl.appendChild(item);
@@ -2588,6 +2711,81 @@ topInput.addEventListener('keydown', (e) => {
   }
 });
 
+
+// ══════════════════════════════════════════════════
+// STATISTICI LUNARE — arhivare sesiuni
+// ══════════════════════════════════════════════════
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+function getMonthlyKey() {
+  return `topChatters_${channelUser}_monthly`;
+}
+
+function loadMonthlyData() {
+  const raw = localStorage.getItem(getMonthlyKey());
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch(e) { return null; }
+}
+
+function saveMonthlyData(data) {
+  try {
+    localStorage.setItem(getMonthlyKey(), JSON.stringify(data));
+  } catch(e) {
+    console.warn('Nu s-a putut salva statisticile lunare:', e);
+  }
+}
+
+function checkMonthlyExpiry(data) {
+  if (!data || !data.periodStart) return null;
+  if ((Date.now() - data.periodStart) > THIRTY_DAYS) {
+    localStorage.removeItem(getMonthlyKey());
+    return null;
+  }
+  return data;
+}
+
+// Arhivează sesiunea curentă în statisticile lunare
+function archiveCurrentSession() {
+  if (!channelUser || Object.keys(counts).length === 0) return;
+
+  let data = loadMonthlyData();
+  data = checkMonthlyExpiry(data);
+
+  if (!data) {
+    data = {
+      periodStart: Date.now(),
+      sessions: []
+    };
+  }
+
+  // Construiește snapshot-ul sesiunii
+  const snapshot = {
+    startTime: sessionStartTime || Date.now(),
+    timestamp: Date.now(),
+    totalMsgs: totalMsgs,
+    peakViewers: peakViewers,
+    counts: Object.assign({}, counts),
+    userMeta: {}
+  };
+
+  // Salvează doar avatar + culoare per user (fără date grele)
+  Object.entries(userMeta).forEach(([u, m]) => {
+    snapshot.userMeta[u] = {
+      avatar: m.avatar || null,
+      paintColor: m.paintColor || null
+    };
+  });
+
+  // Evita duplicate — dacă sesiunea asta e deja arhivată (același sessionId)
+  const alreadyArchived = data.sessions.some(s => s.sessionId === sessionId);
+  if (!alreadyArchived && snapshot.totalMsgs > 0) {
+    snapshot.sessionId = sessionId;
+    data.sessions.push(snapshot);
+    saveMonthlyData(data);
+    console.log('✓ Sesiune arhivată în statistici lunare');
+  }
+}
+
 // ══════════════════════════════════════════════════
 // STOP TRACKING BUTTON
 // ══════════════════════════════════════════════════
@@ -2603,6 +2801,8 @@ btnStop.addEventListener('click', () => {
     return;
   }
   
+  // Arhivează sesiunea curentă
+  archiveCurrentSession();
   // Stop tracking - ask for password
   passwordModal.classList.add('open');
   passwordInput.value = '';
@@ -2683,6 +2883,8 @@ passwordConfirm.addEventListener('click', async () => {
   }
   document.getElementById('top-emotes-panel').classList.add('hidden-panel');
   
+  // Arhivează sesiunea în statistici lunare înainte de reset
+  archiveCurrentSession();
   // Clear saved state
   clearState();
   
