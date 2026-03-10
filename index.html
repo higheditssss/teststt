@@ -729,7 +729,7 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 // Instant hide to prevent flicker - runs before page render
 (function(){
   const params = new URLSearchParams(window.location.search);
-  if(params.get('user') && params.get('session')){
+  if(params.get('user')){
     document.write('<style>#setup{display:none!important}</style>');
   }
 })();
@@ -739,13 +739,29 @@ header{padding:48px 0 32px;display:flex;align-items:flex-start;justify-content:s
 <div id="setup">
   <div class="setup-card">
     <div class="setup-logo">TOP CHATTERS</div>
-    <p class="setup-sub">Monitorizează cei mai activi chatteri live pe orice canal Kick</p>
-    <div class="field">
-      <label>Username canal</label>
-      <input id="inp-user" type="text" placeholder="ex: highman" value="highman" autocomplete="off" spellcheck="false">
+    <p class="setup-sub">Conectează-te cu contul tău Kick pentru a monitoriza chatterii live</p>
+    <button id="btn-kick-oauth" style="
+      width:100%;
+      display:flex;align-items:center;justify-content:center;gap:14px;
+      background:linear-gradient(135deg,#53fc18 0%,#3fc010 100%);
+      color:#000;border:none;border-radius:12px;
+      padding:18px 24px;
+      font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.14em;
+      cursor:pointer;transition:all .3s cubic-bezier(.22,1,.36,1);
+      box-shadow:0 4px 24px rgba(83,252,24,0.4), 0 2px 8px rgba(0,0,0,0.3);
+      position:relative;overflow:hidden;
+    ">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <path d="M2 2h20v20H2V2z" fill="#000" opacity=".08"/>
+        <path d="M5 3v18l5-5 4 4 7-7-7-7-4 4-5-5V3z" fill="#000" fill-rule="evenodd" clip-rule="evenodd"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M4 2H2v20h2V2zm4 5.414L6.586 6 5 7.586l4.5 4.5L5 16.586 6.586 18 8 16.586V20h2v-4h2l5-5-5-5H10V2H8v5.414zM10 8h1.586L15 11.086 11.586 14H10V8z" fill="#000"/>
+      </svg>
+      CONECTEAZĂ CU KICK
+    </button>
+    <div id="setup-err" style="margin-top:16px;font-size:13px;color:#ff6b6b;text-align:center;min-height:20px;font-weight:500"></div>
+    <div style="margin-top:20px;font-size:11px;color:rgba(180,210,180,0.35);text-align:center;line-height:1.6;">
+      Autorizează aplicația prin contul tău Kick.<br>Nu stocăm parola sau date sensibile.
     </div>
-    <button id="btn-go">START ⚡</button>
-    <div id="setup-err"></div>
   </div>
 </div>
 
@@ -1295,8 +1311,6 @@ const emptyEl   = document.getElementById('empty');
 const connDot   = document.getElementById('conn-dot');
 const connTxt   = document.getElementById('conn-txt');
 const liveBadge = document.getElementById('live-badge');
-const btnGo     = document.getElementById('btn-go');
-const errEl     = document.getElementById('setup-err');
 
 // ══════════════════════════════════════════════════
 // THEME SYSTEM
@@ -1545,7 +1559,7 @@ async function clearState() {
 }
 
 function updateURL() {
-  const newUrl = `${window.location.pathname}?user=${channelUser}&session=${sessionId}`;
+  const newUrl = `${window.location.pathname}?user=${channelUser}`;
   window.history.replaceState({}, '', newUrl);
 }
 
@@ -1558,122 +1572,159 @@ window.addEventListener('beforeunload', () => { archiveCurrentSession(); saveSta
 // Check URL parameters on load
 const urlParams = new URLSearchParams(window.location.search);
 const urlUser = urlParams.get('user');
-const urlSession = urlParams.get('session');
+const urlCode = urlParams.get('code'); // OAuth callback code
+const urlState = urlParams.get('state'); // OAuth state
 
-// Hide setup immediately if we have user+session params (prevent flicker)
-if (urlUser && urlSession) {
-  const setupEl = document.getElementById('setup');
-  setupEl.style.display = 'none';
-  document.getElementById('inp-user').value = urlUser;
-  sessionId = urlSession; // Restaurează sessionId din URL
+// ── Kick OAuth ─────────────────────────────────────
+async function startKickOAuth() {
+  const redirectUri = window.location.origin + window.location.pathname;
+  const state = Math.random().toString(36).substring(2, 15);
+  sessionStorage.setItem('oauth_state', state);
+
+  // Backend generează URL-ul OAuth + code_verifier (client_id rămâne secret pe server)
+  const res = await fetch(`/api/auth?action=authorize&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`);
   
-  // Auto-start after DOM is fully loaded
-  window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      btnGo.click();
-    }, 100);
-  });
+  const rawText = await res.text();
+  let data;
+  try { data = JSON.parse(rawText); }
+  catch(e) { throw new Error('Server response invalid: ' + rawText.substring(0, 200)); }
+
+  if (!res.ok || data.error) throw new Error(data.error || 'Nu s-a putut genera URL-ul OAuth');
+  
+  // Salvează code_verifier în sessionStorage — îl trimitem înapoi la callback
+  if (data.code_verifier) sessionStorage.setItem('kick_code_verifier', data.code_verifier);
+  if (data.state) sessionStorage.setItem('oauth_state', data.state);
+  
+  window.location.href = data.url;
 }
-// Dacă URL-ul e curat (fără ?user=...), arată întotdeauna setup-ul —
-// chiar dacă există date în localStorage. Asta permite utilizatorului
-// să navigheze la pagina principală și să aleagă un alt canal.
-// Auto-restore din localStorage se face DOAR dacă URL-ul conține deja parametrii.
 
-
-// ── Setup ──────────────────────────────────────────
-const inpUser = document.getElementById('inp-user');
-
-if (inpUser && btnGo) {
-  inpUser.addEventListener('keydown', e => {
-    if (e.key==='Enter') btnGo.click();
-  });
-
-  btnGo.addEventListener('click', async () => {
-    const user = inpUser.value.trim().toLowerCase();
+async function handleOAuthCallback(code, state) {
+  const errEl = document.getElementById('setup-err');
+  const setupEl = document.getElementById('setup');
   
-  if (!user) { 
-    showErr('Introdu un username valid.'); 
-    return; 
-  }
+  // Clean URL (remove code+state params)
+  window.history.replaceState({}, '', window.location.pathname);
   
-  channelUser=user;
-  
-  // Salvează ultimul user folosit pentru auto-restore la refresh
-  localStorage.setItem('topChatters_lastUser', user);
-  
-  // Generează sau încarcă sessionId persistent pentru acest utilizator
-  sessionId = getOrCreateSessionId();
-  
-  errEl.textContent='';
-  btnGo.disabled=true;
-  btnGo.innerHTML='<span class="spinner"></span> Se încarcă...';
-
   try {
-    const data = await getChannelInfo(user);
-    chatroomId=data.chatroomId; isLive=data.isLive;
-    channelKickUserId = data.kickUserId || null;
-
-    document.getElementById('ch-name').textContent='@'+user;
-    if (data.avatar){
-      const img=document.getElementById('ch-avatar');
-      img.src=data.avatar; img.style.display='block';
+    // Exchange code for token — trimite code_verifier din sessionStorage
+    const savedVerifier = sessionStorage.getItem('kick_code_verifier') || '';
+    const stateParam    = state ? `&state=${encodeURIComponent(state)}` : '';
+    const verifierParam = savedVerifier ? `&code_verifier=${encodeURIComponent(savedVerifier)}` : '';
+    sessionStorage.removeItem('kick_code_verifier');
+    const res = await fetch(`/api/auth?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(window.location.origin + window.location.pathname)}${stateParam}${verifierParam}`);
+    const data = await res.json();
+    
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Autentificare eșuată');
     }
     
-    // Smooth animated transition from setup to app
+    // Store access token
+    sessionStorage.setItem('kick_token', data.access_token);
+    
+    if (!data.username) {
+      throw new Error('Nu s-a putut obține username-ul din contul Kick');
+    }
+    
+    // Fetch full channel info (chatroomId, isLive etc.) using the username
+    const channelRes = await fetch('/api/channel?user=' + encodeURIComponent(data.username));
+    const channelData = await channelRes.json();
+    
+    if (!channelRes.ok || channelData.error) {
+      throw new Error(channelData.error || 'Nu s-a putut obține informația canalului');
+    }
+    
+    // Merge avatar from auth response if channel doesn't have it
+    if (!channelData.avatar && data.avatar) channelData.avatar = data.avatar;
+    
+    // Auto-start with the authenticated user's channel
+    await startApp(data.username, channelData);
+    
+  } catch(e) {
+    errEl.textContent = '❌ ' + e.message;
+    setupEl.classList.remove('hidden');
+    setupEl.style.display = 'flex';
+  }
+}
+
+async function startApp(user, channelData) {
+  channelUser = user;
+  localStorage.setItem('topChatters_lastUser', user);
+  sessionId = getOrCreateSessionId();
+
+  try {
+    const data = channelData || await getChannelInfo(user);
+    chatroomId = data.chatroomId; isLive = data.isLive;
+    channelKickUserId = data.kickUserId || null;
+
+    document.getElementById('ch-name').textContent = '@' + user;
+    if (data.avatar) {
+      const img = document.getElementById('ch-avatar');
+      img.src = data.avatar; img.style.display = 'block';
+    }
+
     const setupEl = document.getElementById('setup');
     const wrapEl = document.querySelector('.wrap');
-    
+
     setupEl.classList.add('hiding');
     setTimeout(() => {
       setupEl.classList.add('hidden');
       setupEl.classList.remove('hiding');
-      document.getElementById('reset-wrap').style.display='flex';
-      document.getElementById('dice-btn-wrap').style.display='flex';
+      document.getElementById('reset-wrap').style.display = 'flex';
+      document.getElementById('dice-btn-wrap').style.display = 'flex';
       document.getElementById('podium-section').classList.add('active-section');
-      document.getElementById('activity-panels').style.display='flex';
-      document.getElementById('top-selector-wrap').style.display='flex';
-      
-      // Initialize session start time
+      document.getElementById('activity-panels').style.display = 'flex';
+      document.getElementById('top-selector-wrap').style.display = 'flex';
       sessionStartTime = Date.now();
-      
-      // Trigger fade-in animation for main app
       setTimeout(() => wrapEl.classList.add('show'), 50);
     }, 400);
-    
-    document.title='Top Chatters — '+user;
 
-    // Update URL with channel
+    document.title = 'Top Chatters — ' + user;
     updateURL();
-    
-    // Try to load saved state (checks cloud first, then localStorage)
-    const loaded = await loadState();
-    if (loaded) {
-      console.log('✓ Stare încărcată cu succes');
-    }
 
-    // Load emotes (7TV + Kick global + Kick channel-specific)
+    const loaded = await loadState();
+    if (loaded) console.log('✓ Stare încărcată cu succes');
+
     if (channelKickUserId) load7TVEmotes(channelKickUserId);
     loadKickEmotes(user);
-
     updateLiveUI(data);
     startPusher();
 
     setInterval(async () => {
-      try {
-        const d=await getChannelInfo(user);
-        isLive=d.isLive;
-        updateLiveUI(d);
-      } catch(_){}
+      try { const d = await getChannelInfo(user); isLive = d.isLive; updateLiveUI(d); } catch(_) {}
     }, 60000);
 
     setInterval(updateMpm, 10000);
 
   } catch(e) {
-    btnGo.disabled=false;
-    btnGo.innerHTML='START ⚡';
-    showErr(e.message);
+    document.getElementById('setup-err').textContent = e.message;
   }
+}
+
+// ── OAuth button handler ───────────────────────────
+const btnKickOAuth = document.getElementById('btn-kick-oauth');
+if (btnKickOAuth) {
+  btnKickOAuth.addEventListener('click', async () => {
+    btnKickOAuth.disabled = true;
+    btnKickOAuth.innerHTML = '<span class="spinner"></span> Se redirecționează...';
+    try {
+      await startKickOAuth();
+    } catch(e) {
+      document.getElementById('setup-err').textContent = '❌ ' + e.message;
+      btnKickOAuth.disabled = false;
+      btnKickOAuth.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M2 2h20v20H2V2z" fill="#000" opacity=".08"/><path d="M5 3v18l5-5 4 4 7-7-7-7-4 4-5-5V3z" fill="#000" fill-rule="evenodd" clip-rule="evenodd"/><path fill-rule="evenodd" clip-rule="evenodd" d="M4 2H2v20h2V2zm4 5.414L6.586 6 5 7.586l4.5 4.5L5 16.586 6.586 18 8 16.586V20h2v-4h2l5-5-5-5H10V2H8v5.414zM10 8h1.586L15 11.086 11.586 14H10V8z" fill="#000"/></svg> CONECTEAZĂ CU KICK';
+    }
   });
+}
+
+// ── Handle OAuth callback or auto-load from URL ────
+if (urlCode) {
+  // Hide setup while processing
+  document.getElementById('setup').style.display = 'none';
+  handleOAuthCallback(urlCode, urlState);
+} else if (urlUser) {
+  // Auto-start from URL param (e.g. after reload)
+  document.getElementById('setup').style.display = 'none';
+  startApp(urlUser);
 }
 
 async function getChannelInfo(user) {
