@@ -94,7 +94,9 @@ module.exports = async (req, res) => {
     }
 
     if (action === 'set' && key && req.method === 'POST') {
-      const expiresAt = Date.now() + (TWENTY_HOURS * 1000);
+      const customTTL = req.query.ttl ? parseInt(req.query.ttl) : null;
+      const TTL = customTTL && customTTL > 0 ? customTTL : TWENTY_HOURS;
+      const expiresAt = Date.now() + (TTL * 1000);
       
       const cacheData = JSON.stringify({
         data: req.body,
@@ -102,12 +104,12 @@ module.exports = async (req, res) => {
       });
       
       // SET în Redis cu expirare automată după 20 ore
-      await redisCommand(['SETEX', key, TWENTY_HOURS, cacheData]);
+      await redisCommand(['SETEX', key, TTL, cacheData]);
 
       return res.status(200).json({
         success: true,
         expiresAt: expiresAt,
-        expiresIn: TWENTY_HOURS
+        expiresIn: TTL
       });
     }
 

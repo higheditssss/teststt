@@ -101,9 +101,8 @@ module.exports = async (req, res) => {
         const user = Array.isArray(userData.data) ? userData.data[0] 
                    : Array.isArray(userData)       ? userData[0]
                    : userData.data || userData;
-        const rawUsername = user?.username || user?.name || user?.slug || user?.login || null;
-        // Kick returnează username cu _ dar canalul folosește - (ex: highman_edits → highman-edits)
-        username = rawUsername ? rawUsername.replace(/_/g, '-') : null;
+        username = user?.username || user?.name || user?.slug || user?.login || null;
+        // username se păstrează exact cum vine de la Kick (ex: highman_edits)
         kickUserId = user?.user_id  || user?.id   || null;
         avatar     = user?.profile_picture || user?.profile_pic || user?.avatar || null;
         console.log('[Kick Users] resolved:', { username, kickUserId, avatar });

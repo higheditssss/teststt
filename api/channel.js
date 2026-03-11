@@ -43,7 +43,8 @@ module.exports = async (req, res) => {
     }
   }
 
-  const resolvedUser = req.query.user;
+  // Kick channel slug folosește - în loc de _ (ex: highman_edits → highman-edits)
+  const resolvedUser = (req.query.user || '').replace(/_/g, '-');
   console.log('[channel.js] resolvedUser:', resolvedUser);
 
   if (!resolvedUser) {
