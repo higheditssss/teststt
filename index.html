@@ -1892,14 +1892,38 @@ setInterval(saveState, 10000);
 // Save on page unload
 window.addEventListener('beforeunload', () => { archiveCurrentSession(); saveState(); });
 
-// ── Top 3 Live Kick Streams ─────────────────────────
+// ── Top Live Streams — doar userii logați cu Kick OAuth ──────────────
 (function initTopLive(){
-  // Channels to check — add more as needed
-  const CHANNELS_TO_CHECK = [
-    'highman-edits','xqc','speed','kaicenat','jynxzi','fanum',
-    'ishowspeed','n3on','adin','plaqueboymax','pinkleaf',
-    'sxna','pinkleafj','adrianrush','hasbulla','nickmercs'
-  ];
+
+  // Salvează/actualizează statusul userului curent în Redis
+  window.registerUserLiveStatus = async function(username, avatar, isLive, viewers, title) {
+    if (!username) return;
+    try {
+      // 1. Citește lista existentă de useri înregistrați
+      const getRes = await fetch('/api/cache?action=get&key=registeredUsers');
+      const getJson = await getRes.json();
+      let users = (getJson.cached && getJson.data) ? getJson.data : {};
+
+      // 2. Actualizează sau adaugă userul curent
+      users[username] = {
+        username,
+        avatar: avatar || null,
+        isLive: !!isLive,
+        viewers: viewers || 0,
+        title: title || '',
+        updatedAt: Date.now()
+      };
+
+      // 3. Salvează înapoi în Redis cu TTL 48h (se auto-curăță)
+      await fetch('/api/cache?action=set&key=registeredUsers&ttl=172800', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(users)
+      });
+    } catch(e) {
+      console.warn('[TopLive] Nu s-a putut salva statusul:', e.message);
+    }
+  };
 
   async function loadTopLive(){
     const listEl = document.getElementById('online-list');
@@ -1907,41 +1931,31 @@ window.addEventListener('beforeunload', () => { archiveCurrentSession(); saveSta
     if(!listEl) return;
 
     try {
-      // Fetch all channels in parallel
-      const results = await Promise.allSettled(
-        CHANNELS_TO_CHECK.map(ch =>
-          fetch('/api/channel?user=' + encodeURIComponent(ch))
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
-        )
-      );
+      // Citește toți userii înregistrați din Redis
+      const getRes = await fetch('/api/cache?action=get&key=registeredUsers');
+      const getJson = await getRes.json();
 
-      // Build live list
-      const liveChannels = [];
-      results.forEach((r, i) => {
-        const data = r.status === 'fulfilled' ? r.value : null;
-        if (data && data.isLive && data.viewers > 0) {
-          liveChannels.push({
-            username: CHANNELS_TO_CHECK[i],
-            viewers: data.viewers || 0,
-            title: data.title || '',
-            avatar: data.avatar || null
-          });
-        }
-      });
-
-      // Sort by viewers descending, take top 3
-      liveChannels.sort((a, b) => b.viewers - a.viewers);
-      const top3 = liveChannels.slice(0, 3);
-
-      if(countEl) countEl.textContent = liveChannels.length > 0 ? liveChannels.length + ' live' : '—';
-
-      if(top3.length === 0){
+      if (!getJson.cached || !getJson.data) {
+        if(countEl) countEl.textContent = '—';
         listEl.innerHTML = '<div class="online-empty">NICIUN LIVE ACTIV</div>';
         return;
       }
 
-      listEl.innerHTML = '<div class="live-cards-row">' + top3.map(ch => {
+      const users = getJson.data;
+
+      // Filtrează doar cei care sunt live, sortează după viewers
+      const liveChannels = Object.values(users)
+        .filter(u => u.isLive)
+        .sort((a, b) => b.viewers - a.viewers);
+
+      if(countEl) countEl.textContent = liveChannels.length > 0 ? liveChannels.length + ' live' : '—';
+
+      if(liveChannels.length === 0){
+        listEl.innerHTML = '<div class="online-empty">NICIUN LIVE ACTIV</div>';
+        return;
+      }
+
+      listEl.innerHTML = '<div class="live-cards-row">' + liveChannels.map(ch => {
         const viewersFmt = ch.viewers >= 1000
           ? (ch.viewers/1000).toFixed(1).replace('.0','') + 'K'
           : ch.viewers.toString();
@@ -2149,8 +2163,21 @@ async function startApp(user, channelData) {
     updateLiveUI(data);
     startPusher();
 
+    // Înregistrează userul în lista globală "TOP LIVE ACUM"
+    if (window.registerUserLiveStatus) {
+      window.registerUserLiveStatus(user, data.avatar, data.isLive, data.viewers, data.title);
+    }
+
     setInterval(async () => {
-      try { const d = await getChannelInfo(user); isLive = d.isLive; updateLiveUI(d); } catch(_) {}
+      try {
+        const d = await getChannelInfo(user);
+        isLive = d.isLive;
+        updateLiveUI(d);
+        // Actualizează statusul live în Redis la fiecare minut
+        if (window.registerUserLiveStatus) {
+          window.registerUserLiveStatus(user, d.avatar || data.avatar, d.isLive, d.viewers, d.title);
+        }
+      } catch(_) {}
     }, 60000);
 
     setInterval(updateMpm, 10000);
