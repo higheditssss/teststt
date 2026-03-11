@@ -2151,7 +2151,11 @@ async function startApp(user, channelData) {
     setInterval(updateMpm, 10000);
 
   } catch(e) {
-    document.getElementById('setup-err').textContent = e.message;
+    const setupEl = document.getElementById('setup');
+    setupEl.style.display = 'flex';
+    setupEl.classList.remove('hidden', 'hiding');
+    document.getElementById('setup-err').textContent = '❌ ' + e.message;
+    throw e; // re-throw so .catch() outside also fires
   }
 }
 
@@ -2178,12 +2182,11 @@ if (urlCode) {
   handleOAuthCallback(urlCode, urlState);
 } else if (urlUser) {
   document.getElementById('setup').style.display = 'none';
-  startApp(urlUser).catch(e => {
-    // Dacă startApp eșuează, arată setup cu eroarea
+  startApp(urlUser).catch(err => {
     const setupEl = document.getElementById('setup');
     setupEl.style.display = 'flex';
     setupEl.classList.remove('hidden', 'hiding');
-    document.getElementById('setup-err').textContent = '❌ Canal negăsit: ' + urlUser + ' — ' + e.message;
+    document.getElementById('setup-err').textContent = '❌ ' + (err.message || 'Canal negăsit');
   });
 }
 
