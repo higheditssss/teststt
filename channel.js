@@ -43,48 +43,40 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Kick channel slug folosește - în loc de _ (ex: highman_edits → highman-edits)
-  const rawUser = req.query.user || '';
-  if (!rawUser) {
+  const resolvedUser = req.query.user || '';
+  console.log('[channel.js] resolvedUser:', resolvedUser);
+
+  if (!resolvedUser) {
     return res.status(400).json({ error: 'Missing ?user= param or ?token= param' });
   }
 
-  // Încearcă atât cu underscore cât și cu dash — Kick acceptă ambele variante pentru unele canale
-  const variants = [rawUser];
-  if (rawUser.includes('_')) variants.push(rawUser.replace(/_/g, '-'));
-  else if (rawUser.includes('-')) variants.push(rawUser.replace(/-/g, '_'));
-
-  console.log('[channel.js] variants to try:', variants);
-
   try {
-    // Try v2 first, fallback to v1, try all variants
+    // Try v2 first, fallback to v1
     let data;
     let response;
-    let resolvedUser = rawUser;
-
-    let found = false;
-    for (const variant of variants) {
-      for (const apiVersion of ['v2', 'v1']) {
-        try {
-          response = await fetch(`https://kick.com/api/${apiVersion}/channels/${encodeURIComponent(variant)}`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json',
-            },
-          });
-          if (response.ok) {
-            data = await response.json();
-            resolvedUser = variant;
-            found = true;
-            break;
-          }
-        } catch(e) { /* try next */ }
+    
+    try {
+      response = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(resolvedUser)}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) throw new Error('v2 failed');
+      data = await response.json();
+    } catch (e) {
+      response = await fetch(`https://kick.com/api/v1/channels/${encodeURIComponent(resolvedUser)}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        return res.status(404).json({ error: 'Channel not found' });
       }
-      if (found) break;
-    }
-
-    if (!found || !data) {
-      return res.status(404).json({ error: 'Channel not found' });
+      data = await response.json();
     }
 
     const chatroomId = data?.chatroom?.id;
