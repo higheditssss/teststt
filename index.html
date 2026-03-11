@@ -104,7 +104,7 @@ body[data-theme="dark"]::after{opacity:.015}
 @keyframes statusPulse{0%,100%{opacity:1}50%{opacity:.25}}
 .online-title{font-family:'DM Mono',monospace;font-size:9px;color:rgba(160,160,160,.45);letter-spacing:.2em;text-transform:uppercase;flex:1;}
 .online-count{font-family:'Bebas Neue',sans-serif;font-size:17px;color:rgba(180,180,180,.8);}
-.online-list{padding:0;max-height:none;overflow-y:visible}
+.online-list{padding:0;max-height:200px;overflow-y:auto}
 .online-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;font-family:'DM Mono',monospace;font-size:10px;color:rgba(160,160,160,.25);letter-spacing:.08em;}
 .ol-spinner{display:inline-block;width:11px;height:11px;border:1.5px solid rgba(160,160,160,.12);border-top-color:rgba(160,160,160,.45);border-radius:50%;animation:spin .8s linear infinite;}
 .online-user{display:flex;align-items:center;gap:9px;padding:6px 13px;transition:background .15s;}
@@ -116,11 +116,11 @@ body[data-theme="dark"]::after{opacity:.015}
 .online-empty{padding:14px;text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:rgba(160,160,160,.18);letter-spacing:.1em;}
 
 /* Top Live Streams — card style */
-.live-cards-row{display:flex;flex-wrap:wrap;gap:8px;padding:10px 10px;}
+.live-cards-row{display:flex;gap:8px;padding:10px 10px;overflow-x:auto;}
 .live-cards-row::-webkit-scrollbar{height:3px}
 .live-cards-row::-webkit-scrollbar-track{background:transparent}
 .live-cards-row::-webkit-scrollbar-thumb{background:rgba(160,160,160,.15);border-radius:2px}
-.live-card{flex:1 1 calc(33% - 8px);min-width:130px;max-width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(160,160,160,.1);border-radius:8px;padding:10px 10px 8px;display:flex;flex-direction:column;gap:7px;transition:background .2s,border-color .2s;cursor:default;}
+.live-card{flex:1;min-width:110px;background:rgba(255,255,255,.03);border:1px solid rgba(160,160,160,.1);border-radius:8px;padding:10px 10px 8px;display:flex;flex-direction:column;gap:7px;transition:background .2s,border-color .2s;cursor:default;}
 .live-card:hover{background:rgba(255,255,255,.055);border-color:rgba(160,160,160,.2)}
 .live-card-top{display:flex;align-items:center;gap:8px;}
 .live-card-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#111;border:1.5px solid rgba(160,160,160,.2);}
@@ -1065,7 +1065,7 @@ header{
               d="M4 2H2v20h2V2zm4 5.414L6.586 6 5 7.586l4.5 4.5L5 16.414 6.586 18 8 16.586V20h2v-4h2l5-5-5-5H10V2H8v5.414zM10 8h1.586L15 11l-3.414 3H10V8z"
               fill="#000"/>
           </svg>
-          <span class="btn-label">CONECTEAZĂ-TE CU KICK</span>
+          <span class="btn-label">CONECTEAZĂ CU KICK</span>
         </button>
 
         <div id="setup-err"></div>
@@ -2178,7 +2178,13 @@ if (urlCode) {
   handleOAuthCallback(urlCode, urlState);
 } else if (urlUser) {
   document.getElementById('setup').style.display = 'none';
-  startApp(urlUser);
+  startApp(urlUser).catch(e => {
+    // Dacă startApp eșuează, arată setup cu eroarea
+    const setupEl = document.getElementById('setup');
+    setupEl.style.display = 'flex';
+    setupEl.classList.remove('hidden', 'hiding');
+    document.getElementById('setup-err').textContent = '❌ Canal negăsit: ' + urlUser + ' — ' + e.message;
+  });
 }
 
 async function getChannelInfo(user) {
