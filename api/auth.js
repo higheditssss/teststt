@@ -101,8 +101,9 @@ module.exports = async (req, res) => {
         const user = Array.isArray(userData.data) ? userData.data[0] 
                    : Array.isArray(userData)       ? userData[0]
                    : userData.data || userData;
-        username = user?.username || user?.name || user?.slug || user?.login || null;
-        // username se păstrează exact cum vine de la Kick (ex: highman_edits)
+        username  = user?.slug || user?.username || user?.name || user?.login || null;
+        // Folosim slug (ex: highman-edits) în loc de username (ex: highman_edits)
+        // slug-ul e folosit direct în URL-urile Kick și funcționează cu /api/channel
         kickUserId = user?.user_id  || user?.id   || null;
         avatar     = user?.profile_picture || user?.profile_pic || user?.avatar || null;
         console.log('[Kick Users] resolved:', { username, kickUserId, avatar });
