@@ -1940,24 +1940,25 @@ window.addEventListener('beforeunload', () => { archiveCurrentSession(); saveSta
         const viewersFmt = ch.viewers >= 1000
           ? (ch.viewers/1000).toFixed(1).replace('.0','') + 'K'
           : ch.viewers.toString();
-        const slug = ch.username.replace(/_/g, '-');
+        const slug = esc(ch.username.replace(/_/g, '-'));
+        const safeInit = esc(ch.username.slice(0,2).toUpperCase());
         const avatarHtml = ch.avatar
-          ? `<img class="live-card-avatar" src="${ch.avatar}" onerror="this.outerHTML='<div class=live-card-avatar-placeholder>${ch.username.slice(0,2).toUpperCase()}</div>'">`
-          : `<div class="live-card-avatar-placeholder">${ch.username.slice(0,2).toUpperCase()}</div>`;
+          ? `<img class="live-card-avatar" src="${esc(ch.avatar)}" data-fallback="${safeInit}" onerror="this.outerHTML='<div class=live-card-avatar-placeholder>'+this.dataset.fallback+'</div>'">`
+          : `<div class="live-card-avatar-placeholder">${safeInit}</div>`;
         const titleHtml = ch.title
-          ? `<div class="live-card-title">${ch.title.substring(0,55)}${ch.title.length>55?'…':''}</div>`
+          ? `<div class="live-card-title">${esc(ch.title.substring(0,55))}${ch.title.length>55?'…':''}</div>`
           : '';
         return `<div class="live-card">
           <div class="live-card-top">
             ${avatarHtml}
             <div class="live-card-namerow">
-              <span class="live-card-name">${ch.username}</span>
+              <span class="live-card-name">${esc(ch.username)}</span>
               <span class="live-card-url">kick.com/${slug}</span>
             </div>
             <div class="live-badge-pill"><span class="live-badge-dot"></span>LIVE</div>
           </div>
           ${titleHtml}
-          <div class="live-card-footer">${viewersFmt} viewers</div>
+          <div class="live-card-footer">${esc(viewersFmt)} viewers</div>
         </div>`;
       }).join('') + '</div>';
 
@@ -2145,52 +2146,8 @@ async function startApp(user, channelData) {
     updateLiveUI(data);
     startPusher();
 
-    // Tracker pentru reset automat după 10 minute de offline
-    let offlineSince = null;
-
     setInterval(async () => {
-      try {
-        const d = await getChannelInfo(user);
-        const wasLive = isLive;
-        isLive = d.isLive;
-        updateLiveUI(d);
-
-        if (d.isLive) {
-          // Live activ — resetăm timer-ul de offline
-          offlineSince = null;
-        } else {
-          // Offline — înregistrăm momentul
-          if (wasLive && !offlineSince) {
-            offlineSince = Date.now();
-            console.log('📴 Live terminat — reset automat în 10 minute');
-          }
-
-          // Dacă e offline de 10 minute — resetăm stats
-          if (offlineSince && (Date.now() - offlineSince) >= 10 * 60 * 1000) {
-            console.log('🔄 10 minute offline — resetare automată statistici');
-            offlineSince = null;
-
-            // Reset toate datele
-            for(const k in counts) delete counts[k];
-            for(const k in userMeta) delete userMeta[k];
-            for(const k in messages) delete messages[k];
-            for(const k in emoteUsage) delete emoteUsage[k];
-            totalMsgs = 0; mpmBuf = []; peakViewers = 0;
-            ['s-total','s-users','s-mpm'].forEach(id => document.getElementById(id).textContent = '0');
-            document.getElementById('s-peak').textContent = '—';
-            boardEl.innerHTML = ''; boardEl.appendChild(emptyEl); emptyEl.style.display = 'flex';
-            document.getElementById('top-emotes-panel').classList.add('hidden-panel');
-            clearState();
-
-            // Toast notificare
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,165,0,.95);color:#000;padding:10px 22px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;z-index:400;box-shadow:0 4px 16px rgba(0,0,0,.3)';
-            toast.textContent = '🔄 Live terminat — statistici resetate automat';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-          }
-        }
-      } catch(_) {}
+      try { const d = await getChannelInfo(user); isLive = d.isLive; updateLiveUI(d); } catch(_) {}
     }, 60000);
 
     setInterval(updateMpm, 10000);
@@ -2738,7 +2695,7 @@ function updateShameBoard() {
     // Avatar
     let avatarHtml;
     if (meta.avatar) {
-      avatarHtml = `<div class="shame-avatar"><img src="${esc(meta.avatar)}" alt="${esc(username)}" onerror="this.parentElement.innerHTML='${init}';this.parentElement.style.background='${solidColor}'"></div>`;
+      avatarHtml = `<div class="shame-avatar" data-init="${esc(init)}" data-color="${esc(solidColor)}"><img src="${esc(meta.avatar)}" alt="${esc(username)}" onerror="var p=this.parentElement;p.textContent=p.dataset.init;p.style.background=p.dataset.color;p.style.display='flex';p.style.alignItems='center';p.style.justifyContent='center'"></div>`;
     } else {
       avatarHtml = `<div class="shame-avatar" style="background:${solidColor};opacity:0.6">${init}</div>`;
     }
@@ -3028,7 +2985,16 @@ function openUserModal(username) {
   
   // Display profile picture if available
   if (meta.avatar) {
-    avatarEl.innerHTML = '<img src="'+esc(meta.avatar)+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display=\'none\';this.parentElement.textContent=\''+initial+'\';this.parentElement.style.background=\''+color+'\'">';
+    const avatarImg = document.createElement('img');
+    avatarImg.src = esc(meta.avatar);
+    avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+    avatarImg.onerror = function() {
+      this.style.display = 'none';
+      avatarEl.textContent = initial;
+      avatarEl.style.background = color;
+    };
+    avatarEl.innerHTML = '';
+    avatarEl.appendChild(avatarImg);
     avatarEl.style.background = 'transparent';
   } else {
     avatarEl.style.background = color;
