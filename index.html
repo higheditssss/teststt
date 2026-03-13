@@ -1065,7 +1065,7 @@ header{
               d="M4 2H2v20h2V2zm4 5.414L6.586 6 5 7.586l4.5 4.5L5 16.414 6.586 18 8 16.586V20h2v-4h2l5-5-5-5H10V2H8v5.414zM10 8h1.586L15 11l-3.414 3H10V8z"
               fill="#000"/>
           </svg>
-          <span class="btn-label">CONECTEAZĂ-TE CU KICK</span>
+          <span class="btn-label">CONECTEAZĂ CU KICK</span>
         </button>
 
         <div id="setup-err"></div>
@@ -2094,8 +2094,9 @@ async function handleOAuthCallback(code, state) {
     
   } catch(e) {
     errEl.textContent = '❌ ' + e.message;
-    setupEl.classList.remove('hidden');
+    setupEl.classList.remove('hidden', 'hiding');
     setupEl.style.display = 'flex';
+    throw e;
   }
 }
 
@@ -2144,8 +2145,52 @@ async function startApp(user, channelData) {
     updateLiveUI(data);
     startPusher();
 
+    // Tracker pentru reset automat după 10 minute de offline
+    let offlineSince = null;
+
     setInterval(async () => {
-      try { const d = await getChannelInfo(user); isLive = d.isLive; updateLiveUI(d); } catch(_) {}
+      try {
+        const d = await getChannelInfo(user);
+        const wasLive = isLive;
+        isLive = d.isLive;
+        updateLiveUI(d);
+
+        if (d.isLive) {
+          // Live activ — resetăm timer-ul de offline
+          offlineSince = null;
+        } else {
+          // Offline — înregistrăm momentul
+          if (wasLive && !offlineSince) {
+            offlineSince = Date.now();
+            console.log('📴 Live terminat — reset automat în 10 minute');
+          }
+
+          // Dacă e offline de 10 minute — resetăm stats
+          if (offlineSince && (Date.now() - offlineSince) >= 10 * 60 * 1000) {
+            console.log('🔄 10 minute offline — resetare automată statistici');
+            offlineSince = null;
+
+            // Reset toate datele
+            for(const k in counts) delete counts[k];
+            for(const k in userMeta) delete userMeta[k];
+            for(const k in messages) delete messages[k];
+            for(const k in emoteUsage) delete emoteUsage[k];
+            totalMsgs = 0; mpmBuf = []; peakViewers = 0;
+            ['s-total','s-users','s-mpm'].forEach(id => document.getElementById(id).textContent = '0');
+            document.getElementById('s-peak').textContent = '—';
+            boardEl.innerHTML = ''; boardEl.appendChild(emptyEl); emptyEl.style.display = 'flex';
+            document.getElementById('top-emotes-panel').classList.add('hidden-panel');
+            clearState();
+
+            // Toast notificare
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,165,0,.95);color:#000;padding:10px 22px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;z-index:400;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+            toast.textContent = '🔄 Live terminat — statistici resetate automat';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+          }
+        }
+      } catch(_) {}
     }, 60000);
 
     setInterval(updateMpm, 10000);
@@ -2179,7 +2224,12 @@ if (btnKickOAuth) {
 if (urlCode) {
   // Hide setup while processing
   document.getElementById('setup').style.display = 'none';
-  handleOAuthCallback(urlCode, urlState);
+  handleOAuthCallback(urlCode, urlState).catch(err => {
+    const setupEl = document.getElementById('setup');
+    setupEl.style.display = 'flex';
+    setupEl.classList.remove('hidden', 'hiding');
+    document.getElementById('setup-err').textContent = '❌ ' + (err.message || 'Autentificare eșuată');
+  });
 } else if (urlUser) {
   document.getElementById('setup').style.display = 'none';
   startApp(urlUser).catch(err => {
